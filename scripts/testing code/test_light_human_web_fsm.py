@@ -6,6 +6,7 @@ import smach
 import smach_ros
 from std_msgs.msg import Bool
 from std_msgs.msg import String
+import roslaunch
 
 #this is testing the ability to turn on the pin from the webbrowser as well as human detection
 
@@ -67,20 +68,48 @@ class Control_data_processing(smach.State):
             rospy.loginfo('no idea what data was sent')
             return 'turn_off'
 
+class Start_rosbridge(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['next_state', 'turn_off'])
+
+        self.init_var = 0
+
+    def execute(self, userdata):
+        if self.init_var==0:
+            self.package = 'rosbridge_server'
+            self.executable = 'rosbridge_websocket'
+            self.node = roslaunch.core.Node(self.package, self.executable)
+            self.launch = roslaunch.scriptapi.ROSLaunch()
+            self.launch.start()
+            self.process=self.launch.launch(self.node)
+            rospy.loginfo(self.process.is_alive())
+            self.init_var = self.init_var + 1
+            return 'next_state'
+        elif self.init_var >= 1:
+            self.process.stop()
+            return 'turn_off'
+
 
 
 class Start_human_detection(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['outcome1'])
+        smach.State.__init__(self, outcomes=['next_state', 'turn_off'])
         #launch yolov5 here from launching code
-        package = 'rosbridge_server'
-        executable = 'rosbridge_websocket'
-
+        self.init_var = 0
 
     def execute(self, userdata):
         #exit yolov5 from here from launching code
-
-        return 'outcome1'
+        if self.init_var==0:
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/launch_detector2.launch"])
+            self.launch.start()
+            rospy.loginfo("detector started")
+            self.init_var = self.init_var + 1
+            return 'next_state'
+        elif self.init_var >= 1:
+            self.launch.shutdown()
+            return 'turn_off'
 
 class Turn_off(smach.State):
     def __init__(self):
@@ -112,14 +141,17 @@ def main():
     with sm:
         #add states to the counter
 
+        smach.StateMachine.add('Start_rosbridge', Start_rosbridge(), transitions={'next_state':'Start_human_detection','turn_off':'Turn_off'})
 
-        smach.StateMachine.add('monitor_for_human_detection_starting', smach_ros.MonitorState("/sentry_control_topic", String, monitor_cb_human_detection_starting), transitions={'invalid':'monitor_control', 'valid':'Turn_off', 'preempted':'monitor_for_human_detection_starting'})
+        smach.StateMachine.add('Start_human_detection', Start_human_detection(), transitions={'next_state':'monitor_for_human_detection_starting', 'turn_off':'Start_rosbridge'})
+
+        smach.StateMachine.add('monitor_for_human_detection_starting', smach_ros.MonitorState("/sentry_control_topic", String, monitor_cb_human_detection_starting), transitions={'invalid':'monitor_control', 'valid':'Start_human_detection', 'preempted':'monitor_for_human_detection_starting'})
 
         smach.StateMachine.add('monitor_control', smach_ros.MonitorState("/sentry_control_topic", String, monitor_cb_control, output_keys=['control_data']), transitions={'invalid':'Control_data_processing', 'valid':'monitor_control', 'preempted':'monitor_control'}, remapping={'control_data':'control_data'})
 
 
-        smach.StateMachine.add('Start_human_detection', Start_human_detection(), transitions={'outcome1':'monitor_for_human_detection_starting'})
-        smach.StateMachine.add('Control_data_processing', Control_data_processing(), transitions={'turn_off':'Turn_off','monitor':'monitor_control'}, remapping={'control_data':'control_data'})
+        
+        smach.StateMachine.add('Control_data_processing', Control_data_processing(), transitions={'turn_off':'Start_human_detection','monitor':'monitor_control'}, remapping={'control_data':'control_data'})
         smach.StateMachine.add('Turn_off', Turn_off(),transitions={'turn_off':'exitSM'})
 
     #Execute SMACH plan
