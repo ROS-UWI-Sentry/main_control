@@ -73,7 +73,7 @@ class Control_human_detection(smach.State):
         if self.init_var==0:
             self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(self.uuid)
-            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/launch_detector2.launch"])
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/launch_detector.launch"])
             self.launch.start()
             rospy.loginfo("detector started")
             self.init_var = self.init_var + 1
