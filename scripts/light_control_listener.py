@@ -43,7 +43,7 @@ from std_msgs.msg import Bool
 
 
 # Pin Definitions
-output_pin = 18  # BCM pin 18, BOARD pin 12
+output_pin = 26  # BCM pin 18, BOARD pin 12
 
 def callback(data):
     global curr_value
