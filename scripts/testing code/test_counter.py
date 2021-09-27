@@ -33,8 +33,7 @@
 #
 # Revision $Id$
 
-## Simple talker demo that listens to std_msgs/Strings published 
-## to the 'chatter' topic
+## Simple counter
 
 import rospy
 from std_msgs.msg import String
@@ -54,39 +53,37 @@ reset = False
 #and it checks the value of the message and performs actions based on it
 def callback(data):
     rospy.loginfo(rospy.get_caller_id() + ' I heard: %s', data.data)
-    global keepCounting, reset, rate2 #percent 
+    global keepCounting, reset #percent 
 
-    i = 0
+    
 
-    if (data.data=="Reset Counter"):
-        #percent = 0
+    if (data.data=="Reset Timer"):
         keepCounting = False
+        reset = True
 
     elif (data.data=="Turn Off"):
         keepCounting = False
-        #percent = 0
-
+        reset = True
+        
     elif (data.data=="Start Timer"):
         keepCounting = True
+        reset = False
         rospy.loginfo("started")
         pub2.publish("timer_started")
         
     elif (data.data=="Pause Timer"):
         keepCounting = False
+        reset = False
         rospy.loginfo("paused")
+        pub2.publish("timer_paused")
+
     elif (data.data=="Stop Timer"):
         keepCounting = False
         reset = True
-        
-        #pub.publish(#percent)
         pub2.publish("timer_finished")
-        
-        # while i < 1203:
-        #     rate2.sleep()
-        #     rospy.loginfo(i)
-        #     i = i + 1
+
     else:
-        rospy.logwarn("Incrorrect data received.")
+        rospy.logwarn("Incorrect data received.")
         
 #this function is for subscribing to messages
 def listener():
@@ -113,16 +110,25 @@ def listener():
     t = 30
     while not rospy.is_shutdown():
    
-        if (not keepCounting):
+        if (not keepCounting and not reset):
+            #rate.sleep()
             pass
            
-        elif (reset):
+        elif (not keepCounting and reset):
             i = 0
+            #rate.sleep()
             
-        elif (i<t and keepCounting):
+        elif (i<t and keepCounting and not reset):
+            now = rospy.get_time()
+            
+            #rospy.loginfo(now.secs)
+            
+            
+            rospy.loginfo(now)
             rospy.loginfo(i)
-            rate.sleep()
+            pub.publish(i)
             i = i + 1
+        rate.sleep()
 
 
     # spin() simply keeps python from exiting until this node is stopped
@@ -135,7 +141,7 @@ if __name__ == '__main__':
     pub = rospy.Publisher('progress', Int32, queue_size=10)
 
     pub2 = rospy.Publisher('sentry_control_topic', String, queue_size=10)
-    rate2 = rospy.Rate(1)
+    
     #start the subscribing and publishing process
     try:
         listener()
@@ -143,4 +149,3 @@ if __name__ == '__main__':
         pass
     
 
-      
