@@ -69,18 +69,18 @@ def callback(data):
         keepCounting = True
         reset = False
         rospy.loginfo("started")
-        pub2.publish("timer_started")
+        #pub2.publish("timer_started")
         
     elif (data.data=="Pause Timer"):
         keepCounting = False
         reset = False
         rospy.loginfo("paused")
-        pub2.publish("timer_paused")
+        #pub2.publish("timer_paused")
 
     elif (data.data=="Stop Timer"):
         keepCounting = False
         reset = True
-        pub2.publish("timer_finished")
+        #pub2.publish("timer_finished")
 
     else:
         rospy.logwarn("Incorrect data received.")
@@ -128,6 +128,8 @@ def listener():
             rospy.loginfo(i)
             pub.publish(i)
             i = i + 1
+        elif (i==t):
+            pub_timer_finished.publish("timer_complete")
         rate.sleep()
 
 
@@ -140,7 +142,7 @@ if __name__ == '__main__':
     #create a publisher object and defines which topic it subscribes to
     pub = rospy.Publisher('progress', Int32, queue_size=10)
 
-    pub2 = rospy.Publisher('sentry_control_topic', String, queue_size=10)
+    pub_timer_finished = rospy.Publisher('sentry_control_topic', String, queue_size=10)
     
     #start the subscribing and publishing process
     try:
