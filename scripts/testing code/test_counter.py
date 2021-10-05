@@ -56,28 +56,28 @@ def callback(data):
     global keepCounting, reset #percent 
 
     
-
-    if (data.data=="Reset Timer"):
+    #self reset timer 
+    if (data.data=="timer_complete"):
         keepCounting = False
         reset = True
 
-    elif (data.data=="Turn Off"):
+    elif (data.data=="turn_off_sentry"):
         keepCounting = False
         reset = True
         
-    elif (data.data=="Start Timer"):
+    elif (data.data=="start_sanitization"): #this also continues timing
         keepCounting = True
         reset = False
         rospy.loginfo("started")
         #pub2.publish("timer_started")
         
-    elif (data.data=="Pause Timer"):
+    elif (data.data=="pause_sanitization"):
         keepCounting = False
         reset = False
         rospy.loginfo("paused")
         #pub2.publish("timer_paused")
 
-    elif (data.data=="Stop Timer"):
+    elif (data.data=="stop_sanitization"):
         keepCounting = False
         reset = True
         #pub2.publish("timer_finished")
@@ -99,7 +99,7 @@ def listener():
 
     #this call creates a subscriber and defines message type and which topic it publishes to
     #whenever a message is received it calls the callback function
-    rospy.Subscriber('brwsrButtons', String, callback)
+    rospy.Subscriber('/sentry_control_topic', String, callback)
 
     #this value is a sleep value
     rate = rospy.Rate(1) #1Hz

@@ -13,6 +13,8 @@ import roslaunch
 last_state = False
 pub_light = rospy.Publisher('light_control', Bool, queue_size=500)
 pub_nav_control = rospy.Publisher('nav_control', String, queue_size=500)
+pub_timer_control = rospy.Publisher('brwsrButtons', String, queue_size=500)
+pub_status_browser = rospy.Publisher('status', String, queue_size=500)
 
 has_human_detection_been_started=False
 
@@ -68,6 +70,7 @@ class sanitization_master(smach.State):
 
         self.pub_nav_startup.publish(True)
         
+        pub_status_browser.publish("Starting navigation stack")
         
         ###publish message to request goal infromation    
         ###"Calculate the sanitization point"
@@ -95,7 +98,10 @@ class sanitization_master(smach.State):
 
 def monitor_cb_goal_reached(ud, msg):
     
-    if msg.data=="nav_module_started":
+    if msg.data=="turn_off":
+        ud.msg_data=msg.data
+        return False
+    elif msg.data=="nav_module_started":
         #publish message to request goal infromation from nav module    
         #publish "Calculate the sanitization points" 
         #let nav module send the result data to the remote?
@@ -250,12 +256,15 @@ def monitor_cb_control(ud, msg):
             rospy.loginfo('OFF')
             ud.msg_data="turn_off_human_detection"
             pub_nav_control.publish("move_to_next_goal")
+            #pub_timer_control("Reset Timer")           
             return False
         else:
             ud.msg_data="turn_off_human_detection"
             pub_nav_control.publish("move_to_next_goal")
+            #pub_timer_control("reset_timer")
             return False   
     elif msg.data== "timer_complete" and has_human_detection_been_started==False:
+
         return True     
     elif msg.data== "turn_off_sentry":
         pub_light.publish(False)
