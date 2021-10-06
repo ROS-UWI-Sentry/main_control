@@ -14,7 +14,7 @@ last_state = False
 pub_light = rospy.Publisher('light_control', Bool, queue_size=500)
 pub_nav_control = rospy.Publisher('nav_control', String, queue_size=500)
 pub_timer_control = rospy.Publisher('brwsrButtons', String, queue_size=500)
-pub_status_browser = rospy.Publisher('status', String, queue_size=500)
+pub_status_browser = rospy.Publisher('status', String, queue_size=500, latch=True)
 
 has_human_detection_been_started=False
 
@@ -28,7 +28,7 @@ class setup_state(smach.State):
         self.init_var = 0
 
     def execute(self, userdata):
-
+        pub_timer_control.publish("Reset Timer")
         if self.init_var==0:
             self.package = 'rosbridge_server'
             self.executable = 'rosbridge_websocket'
@@ -48,7 +48,10 @@ class setup_state(smach.State):
                 #return 'error'            
             return 'next_state'
         elif self.init_var >= 1:
+
             self.process.stop()
+
+            
             return 'turn_off'
 
 
@@ -98,7 +101,7 @@ class sanitization_master(smach.State):
 
 def monitor_cb_goal_reached(ud, msg):
     
-    if msg.data=="turn_off":
+    if msg.data=="turn_off_sentry":
         ud.msg_data=msg.data
         return False
     elif msg.data=="nav_module_started":
@@ -154,7 +157,8 @@ class Control_human_detection(smach.State):
 
     def execute(self, userdata):
         #exit yolov5 from here from launching code
-
+        pub_status_browser.publish("Starting up Human Detection")
+   
         if userdata.msg_data == "goal_reached":
             self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(self.uuid)
@@ -172,7 +176,14 @@ class Control_human_detection(smach.State):
 
 
         elif userdata.msg_data == "all_goals_reached":
-
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+            rospy.loginfo("detector ending")
+        
+            rospy.sleep(5)
+            self.launch.shutdown()
             return 'turn_off'
 
         elif userdata.msg_data == "turn_off_human_detection":
@@ -186,7 +197,7 @@ class Control_human_detection(smach.State):
             self.launch.shutdown()
             return 'previous_state'
 
-        elif userdata.msg_data == "turn_off":
+        elif userdata.msg_data == "turn_off_sentry":
             self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(self.uuid)
             self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
@@ -228,11 +239,11 @@ def monitor_cb_control(ud, msg):
     global last_state, pub_light, has_human_detection_been_started, pub_nav_control
     #has_human_detection_been_started waits until you get a msg from that module
     #so you know it is running before turning on the lights
-
+    
     if msg.data=="human_detected_true":
         pub_light.publish(False)
         rospy.loginfo('OFF')
-        ud.msg_data="turn_off"
+        ud.msg_data="turn_off_sentry"
         return False
     elif msg.data== "human_detected_false": #and has_human_detection_been_started==False:
         has_human_detection_been_started =True
@@ -242,10 +253,10 @@ def monitor_cb_control(ud, msg):
             pub_light.publish(False)
             last_state=False
             rospy.loginfo('OFF')
-            ud.msg_data="turn_off"
+            ud.msg_data="turn_off_sentry"
             return False
         else:
-            ud.msg_data="turn_off"
+            ud.msg_data="turn_off_sentry"
             return False
     elif msg.data== "stop_sanitization" and has_human_detection_been_started == False:
         return True
@@ -269,7 +280,7 @@ def monitor_cb_control(ud, msg):
     elif msg.data== "turn_off_sentry":
         pub_light.publish(False)
         rospy.loginfo('OFF')
-        ud.msg_data="turn_off"
+        ud.msg_data="turn_off_sentry"
         return False
     elif msg.data=="pause_sanitization" and has_human_detection_been_started == True:
         if last_state!=False:
@@ -280,6 +291,7 @@ def monitor_cb_control(ud, msg):
         else:
             return True
     elif msg.data== "pause_sanitization" and has_human_detection_been_started == False:
+        pub_status_browser.publish("Human Detection isn't loaded yet, try again when it does")
         return True
     elif msg.data== "start_sanitization" and has_human_detection_been_started == True:
         if last_state!=True:
@@ -290,11 +302,12 @@ def monitor_cb_control(ud, msg):
         else:
             return True
     elif msg.data== "start_sanitization" and has_human_detection_been_started == False:
+        pub_status_browser.publish("Human Detection isn't loaded yet, try again when it does")        
         return True            
     else:
         rospy.loginfo('Incorrect data')
         rospy.loginfo(msg.data)
-        ud.msg_data="turn_off"
+        ud.msg_data="turn_off_sentry"
         return False
 
 
@@ -317,7 +330,7 @@ def main():
          transitions={'next_state':'monitor_goal_reached','error':'Error','turn_off':'Turn_off'})
 
 
-        smach.StateMachine.add('monitor_goal_reached', smach_ros.MonitorState("/sentry_navigation_topic", \
+        smach.StateMachine.add('monitor_goal_reached', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_goal_reached,\
         output_keys=['msg_data']),\
          transitions={'invalid':'Control_human_detection', 'valid':'monitor_goal_reached',\
@@ -344,8 +357,8 @@ def main():
         smach.StateMachine.add('Error', Error(),transitions={'Error':'exitSM'})
 
     #Execute SMACH plan
-
-    outcome = sm.execute()
+    while not rospy.is_shutdown():
+        outcome = sm.execute()
     #rospy.spin()
 
 
