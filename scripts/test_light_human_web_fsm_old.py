@@ -58,34 +58,40 @@ class setup_state(smach.State):
 
 
 
-class Control_navigation(smach.State):
+class sanitization_master(smach.State):
     def __init__(self):
-        smach.State.__init__(self, input_keys= ['msg_data'], outcomes=['next_state','turn_off', 'error'])
-        self.init_var=0
-
-
+        smach.State.__init__(self, outcomes=['next_state','turn_off', 'error'])
+        #setup publisher
+        self.pub_nav_startup = rospy.Publisher('nav_startup', Bool, queue_size=500)
+        self.pub_nav_startup.publish(False)
 
     def execute(self, userdata):
 
-        #exectute commands to start the navigation module using code similar to setup_state
+        #exectute commands to start the navigation module
+        #or 
+        #publish message to start the navigation module
+
+        self.pub_nav_startup.publish(True)
         
-        if self.init_var==0:
-            #launch the launch file
-            self.init_var=self.init_var + 1
-            return 'next_state'
-        elif self.init_var==1:
-            if userdata.msg_data=="start_navigation":
-                #launch the launch file
+        pub_status_browser.publish("Starting navigation stack")
+        
+        ###publish message to request goal infromation    
+        ###"Calculate the sanitization point"
+        
+        ###receive the goal info and send it to the browser OR
+        ###maybe the nav module can publish this to the browser
+        ###itself since this state cannot receive anything 
+    
 
-                return 'next_state'
-            elif userdata.msg_data=="end_navigation":
-                #shut down the node that was launched
+        ###publish move to next goal message to nav module
+        ###how do i know if the nav module is running?
 
-                return 'next_state'
-            elif userdata.msg_data=="turn_off":
-                #shut down the node that was launched
+        # go into a monitor state to look for goal reached confirmation
 
-                return 'turn_off'
+
+
+        return 'next_state'
+
 
 
 #monitor callback
@@ -98,6 +104,17 @@ def monitor_cb_goal_reached(ud, msg):
     if msg.data=="turn_off_sentry":
         ud.msg_data=msg.data
         return False
+    elif msg.data=="nav_module_started":
+        #publish message to request goal infromation from nav module    
+        #publish "Calculate the sanitization points" 
+        #let nav module send the result data to the remote?
+        pub_nav_control.publish("calculate_sanitization_points")
+        return True
+    elif msg.data=="goal_information_sent":
+        #publish move to next goal message to nav module
+        #publish "move to next goal"
+        pub_nav_control.publish("move_to_next_goal")
+        return True
     elif msg.data=="goal_reached":
         ud.msg_data=msg.data
         return False
