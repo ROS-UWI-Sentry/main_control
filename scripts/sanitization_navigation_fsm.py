@@ -13,7 +13,7 @@ import roslaunch
 last_state = False
 pub_light = rospy.Publisher('light_control', Bool, queue_size=500)
 pub_nav_control = rospy.Publisher('nav_control', String, queue_size=500)
-pub_timer_control = rospy.Publisher('brwsrButtons', String, queue_size=500)
+pub_timer_control = rospy.Publisher('timer_control_topic', String, queue_size=500)
 pub_status_browser = rospy.Publisher('status', String, queue_size=500, latch=True)
 
 has_human_detection_been_started=False
@@ -23,9 +23,10 @@ class setup_state(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['next_state', 'error', 'turn_off'])
         #setup publisher
-    global pub_timer_control
+        global pub_timer_control
 
-    pub_timer_control.publish("Reset Timer")       
+        #to reset the timer to zero
+        pub_timer_control.publish("stop_timer")       
 
         self.init_var = 0
 
@@ -60,28 +61,28 @@ class setup_state(smach.State):
 
 def monitor_cb_start_pressed(ud, msg):
 
-    ud.msg_data=msg.data
-    return False
+    #ud.msg_data=msg.data
+    #return False
     
-    # if msg.data=="start_sanitization":
-    #     ud.msg_data=msg.data
-    #     return False
-    # elif msg.data=="turn_off_sentry":
-    #     ud.msg_data=msg.data
-    #     return False
-    # else:    
-    #     rospy.logwarn("data out of scope")
-    #     return True
+    if msg.data=="start_sanitization":
+        ud.msg_data="start_human_detection"
+        return False
+    elif msg.data=="turn_off_sentry":
+        ud.msg_data=msg.data
+        return False
+    else:    
+        ud.msg_data=msg.data
+        return False
 
 
 #Starts up/shuts down human detection and checks for other cases 
 class Control_human_detection(smach.State):
     def __init__(self):
-        smach.State.__init__(self, input_keys=['userdata_input'], output_keys=['userdata_output'], outcomes=['monitor_for_human_detection_started', 'Control_navigation', 'monitor_control', 'turn_off'])
+        smach.State.__init__(self, input_keys=['userdata_input'], output_keys=['userdata_output'], outcomes=['monitor_for_human_detection_started', 'Control_navigation', 'monitor_control', 'turn_off', 'error'])
 
 
     def execute(self, userdata):
-
+        global pub_timer_control, pub_light, pub_status_browser
         
    
         if userdata.userdata_input == "start_human_detection":
@@ -132,12 +133,15 @@ class Control_human_detection(smach.State):
 
 
         elif userdata.userdata_input == "human_detected_false":
+            #here the light it turnt on because its after human detection
+            #has started and also the timer must begin
             pub_light.publish(True)
+            pub_timer_control.publish("start_timer")
             return 'monitor_control'
         
         else:
-            rospy.logwarn("Incorrect data received, turning off")
-            return 'turn_off'
+            rospy.logwarn("Incorrect data received, error occured!")
+            return 'error'
 
 
 
@@ -164,7 +168,7 @@ def monitor_cb_human_detection_started(ud, msg):
 #it then checks what the message is and performs an action
 def monitor_cb_control(ud, msg):
     
-    global last_state, pub_light
+    global last_state, pub_light, pub_timer_control
 
 
 
@@ -172,11 +176,13 @@ def monitor_cb_control(ud, msg):
         pub_light.publish(False)
         rospy.loginfo('Found a human, shutting down')
         ud.msg_data="turn_off_sentry"
+        pub_timer_control.publish("stop_timer")  
         return False
     elif msg.data== "human_detected_false": 
         #has_human_detection_been_started =True
         return True
     elif msg.data== "stop_sanitization":
+        pub_timer_control.publish("stop_timer")
         if last_state != False:
             pub_light.publish(False)
             last_state=False
@@ -188,6 +194,7 @@ def monitor_cb_control(ud, msg):
             return False
 
     elif msg.data== "timer_complete":
+        pub_timer_control.publish("stop_timer")
         if last_state != False:
             pub_light.publish(False)
             last_state=False
@@ -204,9 +211,11 @@ def monitor_cb_control(ud, msg):
         pub_light.publish(False)
         rospy.loginfo('OFF')
         ud.msg_data="turn_off_sentry"
+        pub_timer_control.publish("stop_timer")
         return False
 
     elif msg.data=="pause_sanitization":
+        pub_timer_control.publish("pause_timer")
         if last_state!=False:
             pub_light.publish(False)
             last_state=False
@@ -216,6 +225,7 @@ def monitor_cb_control(ud, msg):
             return True
 
     elif msg.data== "start_sanitization":
+        pub_timer_control.publish("start_timer")
         if last_state!=True:
             pub_light.publish(True)
             last_state=True
@@ -226,16 +236,20 @@ def monitor_cb_control(ud, msg):
     else:
         rospy.loginfo('Incorrect data')
         rospy.loginfo(msg.data)
-        ud.msg_data="turn_off_sentry"
+        pub_timer_control.publish("stop_timer")
+        ud.msg_data=msg.data
         return False
 
 
 class Control_navigation(smach.State):
     def __init__(self):
-        smach.State.__init__(self, input_keys= ['userdata_input'], output_keys = ['userdata_output'], outcomes=['monitor_navigation','Control_human_detection', 'turn_off', 'error'])
+        smach.State.__init__(self, input_keys= ['userdata_input'],\
+         output_keys = ['userdata_output'], \
+         outcomes=['monitor_navigation','Control_human_detection', 'turn_off', 'error'])
         self.init_var=0
 
     def execute(self, userdata):
+        global pub_status_browser
 
         #exectute commands to start the navigation module using code similar to setup_state
         
@@ -262,9 +276,9 @@ class Control_navigation(smach.State):
             return 'turn_off'
         
         else:
-            rospy.logwarn("data out of scope")
+            rospy.logwarn("Incorrect data received, error occured!")
             #shutdown node
-            return 'turn_off'
+            return 'error'
 
 
 def monitor_cb_navigation(ud, msg):
@@ -295,10 +309,10 @@ class Turn_off(smach.State):
 
 class Error(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['Error'])
+        smach.State.__init__(self, outcomes=['error'])
 
     def execute(self, userdata):
-        return 'Error'
+        return 'error'
 
 
 
@@ -315,33 +329,55 @@ def main():
         #this is the standard way from the tutorials
 
         smach.StateMachine.add('setup_state', setup_state(),\
-         transitions={'next_state':'monitor_for_start','error':'Error', 'turn_off':'Turn_off'})
+         transitions={\
+         'next_state':'monitor_for_start',\
+         'error':'Error',\
+         'turn_off':'Turn_off'})
 
         smach.StateMachine.add('monitor_for_start', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_start_pressed,\
         output_keys=['msg_data']),\
-         transitions={'invalid':'Control_human_detection', 'valid':'monitor_for_start',\
+         transitions={\
+         'invalid':'Control_human_detection',\
+         'valid':'monitor_for_start',\
          'preempted':'monitor_for_start'})
 
         smach.StateMachine.add('Control_human_detection', Control_human_detection(),\
-         transitions={'monitor_for_human_detection_started':'monitor_control', 'Control_navigation':'Control_navigation', 'monitor_control':'monitor_control', 'turn_off':'setup_state', 'error':'Error'},\
-         remapping={'userdata_input':'msg_data','userdata_output':'control_navigation_human_detection'})
+         transitions={\
+         'monitor_for_human_detection_started':'monitor_control',\
+         'Control_navigation':'Control_navigation',\
+         'monitor_control':'monitor_control',\
+         'turn_off':'setup_state',\
+         'error':'Error'},\
+         remapping={\
+         'userdata_input':'msg_data',\
+         'userdata_output':'control_navigation_human_detection'})
 
         smach.StateMachine.add('monitor_for_human_detection_started', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_start_pressed,\
         output_keys=['msg_data']),\
-         transitions={'invalid':'Control_human_detection', 'valid':'monitor_for_human_detection_started',\
+         transitions={\
+         'invalid':'Control_human_detection',\
+         'valid':'monitor_for_human_detection_started',\
          'preempted':'monitor_for_human_detection_started'})
 
         smach.StateMachine.add('monitor_control', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_control,\
          output_keys=['msg_data']),\
-         transitions={'invalid':'Control_human_detection', 'valid':'monitor_control',\
+         transitions={\
+         'invalid':'Control_human_detection',\
+         'valid':'monitor_control',\
          'preempted':'monitor_control'})
 
-        smach.StateMachine.add('Control_Navigation', Control_navigation(),\
-         transitions={'monitor_navigation':'monitor_navigation', 'Control_human_detection':'Control_human_detection', 'turn_off':'setup_state', 'error':'Error'},\
-         remapping={'userdata_input':'msg_data','userdata_output':'control_navigation_human_detection'})     
+        smach.StateMachine.add('Control_navigation', Control_navigation(),\
+         transitions={\
+         'monitor_navigation':'monitor_navigation',\
+         'Control_human_detection':'Control_human_detection',\
+         'turn_off':'setup_state',\
+         'error':'Error'},\
+         remapping={\
+         'userdata_input':'msg_data',\
+         'userdata_output':'control_navigation_human_detection'})     
 
         smach.StateMachine.add('monitor_navigation', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_navigation,\
@@ -352,11 +388,11 @@ def main():
 
         smach.StateMachine.add('Turn_off', Turn_off(),transitions={'turn_off':'exitSM'})
 
-        smach.StateMachine.add('Error', Error(),transitions={'Error':'exitSM'})
+        smach.StateMachine.add('Error', Error(),transitions={'error':'exitSM'})
 
     #Execute SMACH plan
-    while not rospy.is_shutdown():
-        outcome = sm.execute()
+    
+    outcome = sm.execute()
     #rospy.spin()
 
 
