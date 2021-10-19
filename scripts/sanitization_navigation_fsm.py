@@ -76,7 +76,7 @@ def monitor_cb_start_pressed(ud, msg):
         return False
     else:    
         rospy.logwarn("data either corrupt or ignored for this state")
-        return true
+        return True
 
 
 #This state starts up/shuts down human detection and checks for other cases 
@@ -91,50 +91,39 @@ class Control_human_detection(smach.State):
         #userdata.userdata_input is the value of the data sent into the state
         #from another state
         if userdata.userdata_input == "start_human_detection":
-            pub_status_browser.publish("Starting up Human Detection")
-            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            roslaunch.configure_logging(self.uuid)
-            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/launch_detector.launch"])
-            self.launch.start()
+            # pub_status_browser.publish("Starting up Human Detection")
+            # self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            # roslaunch.configure_logging(self.uuid)
+            # self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/launch_detector.launch"])
+            # self.launch.start()
             rospy.loginfo("detector started")
             return 'monitor_for_human_detection_started'
 
 
         elif userdata.userdata_input == "turn_off_human_detection":
-            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            roslaunch.configure_logging(self.uuid)
-            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
-            self.launch.start()
-            rospy.loginfo("detector ending")
+            # self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            # roslaunch.configure_logging(self.uuid)
+            # self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            # self.launch.start()
+           
         
-            rospy.sleep(5)
-            self.launch.shutdown()
+            # rospy.sleep(5)
+            # self.launch.shutdown()
             userdata.userdata_output="start_navigation"
+            rospy.loginfo("detector ended")
             return 'Control_navigation'
 
         elif userdata.userdata_input == "turn_off_sentry":
-            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            roslaunch.configure_logging(self.uuid)
-            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
-            self.launch.start()
-            rospy.loginfo("detector ending")
+            # self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            # roslaunch.configure_logging(self.uuid)
+            # self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            # self.launch.start()
+
         
-            rospy.sleep(5)
-            self.launch.shutdown()
+            # rospy.sleep(5)
+            # self.launch.shutdown()
+            rospy.loginfo("detector ended")            
             return 'Turn_off'   
-
-        # elif userdata.userdata_input == "human_detected_true":
-        #     pub_light.publish(False)
-
-        #     self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-        #     roslaunch.configure_logging(self.uuid)
-        #     self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
-        #     self.launch.start()
-        #     rospy.loginfo("detector ending")
-        
-        #     rospy.sleep(5)
-        #     self.launch.shutdown()
-        #     return 'turn_off'  
 
 
         elif userdata.userdata_input == "go_to_monitor_control":
@@ -143,15 +132,16 @@ class Control_human_detection(smach.State):
         else:
             rospy.logwarn("Incorrect data received, error occured!")
 
-            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            roslaunch.configure_logging(self.uuid)
-            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
-            self.launch.start()
-            rospy.loginfo("detector ending")
-        
-            rospy.sleep(5)
-            self.launch.shutdown()
+            # self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            # roslaunch.configure_logging(self.uuid)
+            # self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            # self.launch.start()
+
+
+            # rospy.sleep(5)
+            # self.launch.shutdown()
             
+            rospy.loginfo("detector ended")            
 
             return 'Error'
 
@@ -160,9 +150,13 @@ class Control_human_detection(smach.State):
 #so you know it is running before turning on the lights
 def monitor_cb_human_detection_started(ud, msg):
 
+    global pub_light, pub_timer_control
+    
     if msg.data=="human_detected_true":
         ud.msg_data="turn_off_sentry"
         pub_light.publish(False)
+        rospy.loginfo('UV lights OFF')
+        pub_timer_control.publish("stop_timer") 
         return False
     elif msg.data=="human_detected_false":
         #here the light it turned on because its after human detection
@@ -184,10 +178,10 @@ def monitor_cb_control(ud, msg):
     global last_state, pub_light, pub_timer_control
 
     if msg.data=="human_detected_true":
+        pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
         rospy.logwarn('Found a human, shutting down!')
-        ud.msg_data="turn_off_sentry"
-        pub_timer_control.publish("stop_timer")  
+        ud.msg_data="turn_off_sentry"  
         return False
     elif msg.data== "human_detected_false": 
         return True
@@ -195,9 +189,9 @@ def monitor_cb_control(ud, msg):
         pub_timer_control.publish("stop_timer")
         if last_state != False:
             pub_light.publish(False)
-            last_state=False
             rospy.loginfo('UV lights OFF')
             ud.msg_data="turn_off_sentry"
+            last_state=False
             return False
         else:
             rospy.loginfo('UV lights OFF')
@@ -208,9 +202,9 @@ def monitor_cb_control(ud, msg):
         pub_timer_control.publish("stop_timer")
         if last_state != False:
             pub_light.publish(False)
-            last_state=False
             rospy.loginfo('UV lights OFF')
-            ud.msg_data="turn_off_human_detection"     
+            ud.msg_data="turn_off_human_detection"   
+            last_state=False  
             return False
         else:
             rospy.loginfo('UV lights OFF')
@@ -218,39 +212,40 @@ def monitor_cb_control(ud, msg):
             return False   
   
     elif msg.data== "turn_off_sentry":
+        pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
         rospy.loginfo('UV lights OFF')
         ud.msg_data="turn_off_sentry"
-        pub_timer_control.publish("stop_timer")
         return False
 
     elif msg.data=="pause_sanitization":
         pub_timer_control.publish("pause_timer")
         if last_state!=False:
             pub_light.publish(False)
+            rospy.loginfo('UV lights OFF')
             last_state=False
-            rospy.loginfo('UV lights OFF'))
             return True
         else:
+            rospy.loginfo('UV lights OFF')
             return True
 
     elif msg.data== "start_sanitization":
         pub_timer_control.publish("start_timer")
         if last_state!=True:
             pub_light.publish(True)
-            last_state=True
             rospy.loginfo('UV lights ON')
+            last_state=True
             return True
         else:
             rospy.loginfo('UV lights ON')
             return True         
     else:
-        rospy.logwarn('Incorrect data')
-        rospy.loginfo(msg.data)
+        pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
         rospy.loginfo('UV lights OFF')
+        rospy.logwarn('Incorrect data')
+        rospy.loginfo(msg.data)
         ud.msg_data=msg.data
-        pub_timer_control.publish("stop_timer")
         return False
 
 
@@ -358,7 +353,7 @@ def main():
 
         smach.StateMachine.add('Control_human_detection', Control_human_detection(),\
          transitions={\
-         'monitor_for_human_detection_started':'monitor_control',\
+         'monitor_for_human_detection_started':'monitor_for_human_detection_started',\
          'Control_navigation':'Control_navigation',\
          'monitor_control':'monitor_control',\
          'Turn_off':'setup_state',\
@@ -368,7 +363,7 @@ def main():
          'userdata_output':'control_navigation_human_detection'})
 
         smach.StateMachine.add('monitor_for_human_detection_started', smach_ros.MonitorState("/sentry_control_topic", \
-        String, monitor_cb_start_pressed,\
+        String, monitor_cb_human_detection_started,\
         output_keys=['msg_data']),\
          transitions={\
          'invalid':'Control_human_detection',\
