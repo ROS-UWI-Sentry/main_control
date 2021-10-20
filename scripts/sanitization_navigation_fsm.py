@@ -28,6 +28,9 @@ class setup_state(smach.State):
         #to reset the timer to zero
         pub_timer_control.publish("stop_timer")       
 
+        #to ensure the light is off
+        pub_light.publish(False)
+
         #this variable allows to use this state differently
         #depending on if its the first or second time you enter it
         self.init_var = 0
@@ -184,32 +187,52 @@ def monitor_cb_control(ud, msg):
         ud.msg_data="turn_off_sentry"  
         return False
     elif msg.data== "human_detected_false": 
+        #do nothing
         return True
     elif msg.data== "stop_sanitization":
         pub_timer_control.publish("stop_timer")
-        if last_state != False:
-            pub_light.publish(False)
-            rospy.loginfo('UV lights OFF')
-            ud.msg_data="turn_off_sentry"
-            last_state=False
-            return False
-        else:
-            rospy.loginfo('UV lights OFF')
-            ud.msg_data="turn_off_sentry"
-            return False
+        #to ensure that the lights are off
+        pub_light.publish(False)
+        rospy.loginfo('UV lights OFF')
+        ud.msg_data="turn_off_sentry"
+        last_state=False
+        return False
+
+
+        # pub_timer_control.publish("stop_timer")
+        # if last_state != False:
+        #     pub_light.publish(False)
+        #     rospy.loginfo('UV lights OFF')
+        #     ud.msg_data="turn_off_sentry"
+        #     last_state=False
+        #     return False
+        # else:
+        #     rospy.loginfo('UV lights OFF')
+        #     ud.msg_data="turn_off_sentry"
+        #     return False
 
     elif msg.data== "timer_complete":
         pub_timer_control.publish("stop_timer")
-        if last_state != False:
-            pub_light.publish(False)
-            rospy.loginfo('UV lights OFF')
-            ud.msg_data="turn_off_human_detection"   
-            last_state=False  
-            return False
-        else:
-            rospy.loginfo('UV lights OFF')
-            ud.msg_data="turn_off_human_detection"
-            return False   
+        #to ensure that the lights are off
+        pub_light.publish(False)
+        rospy.loginfo('UV lights OFF')
+        ud.msg_data="turn_off_human_detection"   
+        last_state=False  
+        return False
+
+
+
+
+        # if last_state != False:
+        #     pub_light.publish(False)
+        #     rospy.loginfo('UV lights OFF')
+        #     ud.msg_data="turn_off_human_detection"   
+        #     last_state=False  
+        #     return False
+        # else:
+        #     rospy.loginfo('UV lights OFF')
+        #     ud.msg_data="turn_off_human_detection"
+        #     return False   
   
     elif msg.data== "turn_off_sentry":
         pub_timer_control.publish("stop_timer")
@@ -219,8 +242,11 @@ def monitor_cb_control(ud, msg):
         return False
 
     elif msg.data=="pause_sanitization":
-        pub_timer_control.publish("pause_timer")
+        #This if statement is in the event the user presses
+        #pause multiple times, so the lights and timer
+        #will be turned on only once until it has to be stopped        
         if last_state!=False:
+            pub_timer_control.publish("pause_timer")
             pub_light.publish(False)
             rospy.loginfo('UV lights OFF')
             last_state=False
@@ -230,8 +256,11 @@ def monitor_cb_control(ud, msg):
             return True
 
     elif msg.data== "start_sanitization":
-        pub_timer_control.publish("start_timer")
+        #This if statement is in the event the user presses
+        #start multiple times, so the lights and timer
+        #will be turned on only once until it has to be stopped
         if last_state!=True:
+            pub_timer_control.publish("start_timer")
             pub_light.publish(True)
             rospy.loginfo('UV lights ON')
             last_state=True
@@ -360,7 +389,7 @@ def main():
          'Error':'Error'},\
          remapping={\
          'userdata_input':'msg_data',\
-         'userdata_output':'control_navigation_human_detection'})
+         'userdata_output':'msg_data'})
 
         smach.StateMachine.add('monitor_for_human_detection_started', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_human_detection_started,\
@@ -386,7 +415,7 @@ def main():
          'Error':'Error'},\
          remapping={\
          'userdata_input':'msg_data',\
-         'userdata_output':'control_navigation_human_detection'})     
+         'userdata_output':'msg_data'})     
 
         smach.StateMachine.add('monitor_navigation', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_navigation,\
@@ -397,7 +426,7 @@ def main():
 
         smach.StateMachine.add('Turn_off', Turn_off(),transitions={'Turn_off':'exitSM'})
 
-        smach.StateMachine.add('Error', Error(),transitions={'Error':'exitSM'})
+        smach.StateMachine.add('Error', Error(),transitions={'Error':'setup_state'})
 
     #Execute SMACH plan
     
