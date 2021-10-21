@@ -1,0 +1,10 @@
+<launch>
+
+    <node pkg="main_control" type="source_counter.sh" name="source_counter"/>
+
+
+
+</launch>
+
+
+

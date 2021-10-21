@@ -94,37 +94,55 @@ class Control_human_detection(smach.State):
         #userdata.userdata_input is the value of the data sent into the state
         #from another state
         if userdata.userdata_input == "start_human_detection":
-            # pub_status_browser.publish("Starting up Human Detection")
-            # self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            # roslaunch.configure_logging(self.uuid)
-            # self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/launch_detector.launch"])
-            # self.launch.start()
-            rospy.loginfo("detector started")
-            return 'monitor_for_human_detection_started'
+
+
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/main_control/launch/launch_source_counter.launch"])
+            self.launch.start()
+            rospy.sleep(1)
+            self.launch.shutdown()
+
+            with open("/home/uwi/catkin_ws/src/main_control/launch/streams.txt") as f:
+                temp=f.readlines()
+            
+            if len(temp) == 0:
+                rospy.logwarn("No cameras detected")
+                pub_status_browser.publish("NO CAMERAS DETECTED, SHUTTING DOWN")
+                return 'Turn_off'
+            else:
+
+                pub_status_browser.publish("Starting up Human Detection")
+                self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+                roslaunch.configure_logging(self.uuid)
+                self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/launch_detector.launch"])
+                self.launch.start()
+                rospy.loginfo("detector started")
+                return 'monitor_for_human_detection_started'
 
 
         elif userdata.userdata_input == "turn_off_human_detection":
-            # self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            # roslaunch.configure_logging(self.uuid)
-            # self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
-            # self.launch.start()
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
            
         
-            # rospy.sleep(5)
-            # self.launch.shutdown()
+            rospy.sleep(5)
+            self.launch.shutdown()
             userdata.userdata_output="start_navigation"
             rospy.loginfo("detector ended")
             return 'Control_navigation'
 
         elif userdata.userdata_input == "turn_off_sentry":
-            # self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            # roslaunch.configure_logging(self.uuid)
-            # self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
-            # self.launch.start()
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
 
         
-            # rospy.sleep(5)
-            # self.launch.shutdown()
+            rospy.sleep(5)
+            self.launch.shutdown()
             rospy.loginfo("detector ended")            
             return 'Turn_off'   
 
@@ -135,14 +153,14 @@ class Control_human_detection(smach.State):
         else:
             rospy.logwarn("Incorrect data received, error occured!")
 
-            # self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            # roslaunch.configure_logging(self.uuid)
-            # self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
-            # self.launch.start()
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
 
 
-            # rospy.sleep(5)
-            # self.launch.shutdown()
+            rospy.sleep(5)
+            self.launch.shutdown()
             
             rospy.loginfo("detector ended")            
 
