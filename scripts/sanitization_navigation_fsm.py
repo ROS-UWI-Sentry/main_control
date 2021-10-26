@@ -39,6 +39,7 @@ class setup_state(smach.State):
 
 
         if self.init_var==0:
+            #Taken from the ros launch tutorial on running ros launch files in scripts
             self.package = 'rosbridge_server'
             self.executable = 'rosbridge_websocket'
             self.node = roslaunch.core.Node(self.package, self.executable)
@@ -47,14 +48,7 @@ class setup_state(smach.State):
             self.process=self.launch.launch(self.node)
             rospy.loginfo(self.process.is_alive())
             self.init_var = self.init_var + 1
-
-            #check amount of cameras attatched
-            #use the previous bash script 
-            
-            #publish this to the browser under camera topic maybe
-
-            #if no webcams found
-                #return 'Error'            
+         
             return 'next_state'
         elif self.init_var >= 1:
 
@@ -77,6 +71,9 @@ def monitor_cb_start_pressed(ud, msg):
     elif msg.data=="turn_off_sentry":
         ud.msg_data=msg.data
         return False
+    elif msg.data=="error_received":
+        ud.msg_data=msg.data
+        return False
     else:    
         rospy.logwarn("data either corrupt or ignored for this state")
         return True
@@ -91,11 +88,11 @@ class Control_human_detection(smach.State):
     def execute(self, userdata):
         global pub_timer_control, pub_light, pub_status_browser
         
-        #userdata.userdata_input is the value of the data sent into the state
-        #from another state
+        #userdata.userdata_input is the value 
+        #of the data sent into the state from another state
         if userdata.userdata_input == "start_human_detection":
 
-
+            #Taken from the ros launch tutorial on running ros launch files in scripts
             self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(self.uuid)
             self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/main_control/launch/launch_source_counter.launch"])
@@ -103,15 +100,18 @@ class Control_human_detection(smach.State):
             rospy.sleep(1)
             self.launch.shutdown()
 
+            #Here the amount of cameras attatched to the system is checked
+
             with open("/home/uwi/catkin_ws/src/main_control/launch/streams.txt") as f:
                 temp=f.readlines()
             
+            #if no cameras are attatched the system performs this
             if len(temp) == 0:
                 rospy.logwarn("No cameras detected")
                 pub_status_browser.publish("NO CAMERAS DETECTED, SHUTTING DOWN")
                 return 'Turn_off'
+            #if cameras are detected the human detector is started
             else:
-
                 pub_status_browser.publish("Starting up Human Detection")
                 self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
                 roslaunch.configure_logging(self.uuid)
@@ -122,6 +122,7 @@ class Control_human_detection(smach.State):
 
 
         elif userdata.userdata_input == "turn_off_human_detection":
+            #this starts a script to pkill the human detector for a clean exit
             self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(self.uuid)
             self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
@@ -135,6 +136,7 @@ class Control_human_detection(smach.State):
             return 'Control_navigation'
 
         elif userdata.userdata_input == "turn_off_sentry":
+            #this starts a script to pkill the human detector for a clean exit            
             self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(self.uuid)
             self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
@@ -146,6 +148,19 @@ class Control_human_detection(smach.State):
             rospy.loginfo("detector ended")            
             return 'Turn_off'   
 
+
+        elif userdata.userdata_input == "error_received":
+            #this starts a script to pkill the human detector for a clean exit            
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+
+        
+            rospy.sleep(5)
+            self.launch.shutdown()
+            rospy.loginfo("error occured")            
+            return 'Error'   
 
         elif userdata.userdata_input == "go_to_monitor_control":
             return 'monitor_control'
@@ -186,6 +201,12 @@ def monitor_cb_human_detection_started(ud, msg):
         rospy.loginfo('UV lights ON')
         pub_timer_control.publish("start_timer")        
         ud.msg_data="go_to_monitor_control"
+        return False
+    elif msg.data=="error_received":
+        ud.msg_data=msg.data
+        pub_light.publish(False)
+        rospy.loginfo('UV lights OFF')
+        pub_timer_control.publish("stop_timer") 
         return False
     else:    
         rospy.logwarn("data either corrupt or ignored for this state")
@@ -259,6 +280,13 @@ def monitor_cb_control(ud, msg):
         ud.msg_data="turn_off_sentry"
         return False
 
+    elif msg.data== "error_received":
+        pub_timer_control.publish("stop_timer")
+        pub_light.publish(False)
+        rospy.loginfo('UV lights OFF')
+        ud.msg_data="error_received"
+        return False
+
     elif msg.data=="pause_sanitization":
         #This if statement is in the event the user presses
         #pause multiple times, so the lights and timer
@@ -287,6 +315,7 @@ def monitor_cb_control(ud, msg):
             rospy.loginfo('UV lights ON')
             return True         
     else:
+        #if none of the data is recognised return incorrect data to control human detection
         pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
         rospy.loginfo('UV lights OFF')
@@ -330,6 +359,12 @@ class Control_navigation(smach.State):
             pub_status_browser.publish("Sanitization Complete")
             return 'Turn_off'
         
+        
+        elif userdata.userdata_input=="error_received":
+            #shut down the node that was launched
+            return 'Error'        
+
+
         else:
             rospy.logwarn("Incorrect data received, error occured!")
             #shutdown node
@@ -381,8 +416,8 @@ def main():
     # Open the container
 
     with sm:
-        #add states to the container
-        #this is the standard way from the tutorials
+        #The following block add states to the container
+        #This is the standard way from the tutorials
 
         smach.StateMachine.add('setup_state', setup_state(),\
          transitions={\
@@ -390,6 +425,8 @@ def main():
          'Error':'Error',\
          'Turn_off':'Turn_off'})
 
+        #this is a monitor state
+        #it is a template from the smach tutorials
         smach.StateMachine.add('monitor_for_start', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_start_pressed,\
         output_keys=['msg_data']),\
@@ -409,6 +446,8 @@ def main():
          'userdata_input':'msg_data',\
          'userdata_output':'msg_data'})
 
+        #this is a monitor state
+        #it is a template from the smach tutorials
         smach.StateMachine.add('monitor_for_human_detection_started', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_human_detection_started,\
         output_keys=['msg_data']),\
@@ -417,6 +456,8 @@ def main():
          'valid':'monitor_for_human_detection_started',\
          'preempted':'monitor_for_human_detection_started'})
 
+        #this is a monitor state
+        #it is a template from the smach tutorials
         smach.StateMachine.add('monitor_control', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_control,\
          output_keys=['msg_data']),\
@@ -435,6 +476,8 @@ def main():
          'userdata_input':'msg_data',\
          'userdata_output':'msg_data'})     
 
+        #this is a monitor state
+        #it is a template from the smach tutorials
         smach.StateMachine.add('monitor_navigation', smach_ros.MonitorState("/sentry_control_topic", \
         String, monitor_cb_navigation,\
          output_keys=['msg_data']),\
@@ -446,10 +489,10 @@ def main():
 
         smach.StateMachine.add('Error', Error(),transitions={'Error':'setup_state'})
 
-    #Execute SMACH plan
+    #Execute the SMACH itself
     
     outcome = sm.execute()
-    #rospy.spin()
+
 
 
 if __name__ == '__main__':
