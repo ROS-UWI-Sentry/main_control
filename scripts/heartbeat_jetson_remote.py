@@ -36,6 +36,11 @@
 ## This code is to publish a message to the broswer so that it can respond
 #and the ROS on the jetson would know that it is connected 
 
+#It counts up to 30 seconds then publishes a request to the remote
+#if the remote does not respond within another 30 seconds the
+#code will stop counting and continuously output "turn_off_sentry"
+#on the "sentry_control_topic"
+
 import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Int32
@@ -46,8 +51,15 @@ import thread
 
 
 reset = False
+#running is used to keep track of if connected message was received
+#also it tells the counter if it has already passed 30s without 
+#receiving the connected message
 running = False
-#percent = 0
+#this variable tells the node if the user has pressed the start button
+#so that it can only check for connection when santitation is happening
+start_sanitization_pressed = False
+#this variable is for if within 30s a connected  message was received or not
+no_connection_confirmed = False
 
 
 #this callback function gets called whenever a message is recieved
@@ -57,27 +69,26 @@ def callback(data):
     rospy.loginfo(rospy.get_caller_id() + ' I heard: %s', data.data)
     global reset, running #percent 
 
-    
-    #self reset timer 
-
-    # if (data.data=="timer_complete"):
-    #     keepCounting = False
-    #     reset = True
-
-    # elif (data.data=="turn_off_sentry"):
-    #     keepCounting = False
-    #     reset = True
-        
+    #check if the message recieved is "connected" so we know that the remote 
+    #is connecte to rosbridge
     if (data.data=="connected"): #this also continues timing
 
         rospy.loginfo("conencted")
-        
+        #if the browser returns that it is connected within 30s of requesting, 
+        #running is set to false
+        #else if it remains true after 30s then the remote is not connected
         running = False
     
-
-
     else:
         rospy.logwarn("Incorrect data received.")
+
+
+def callback2(data):
+    rospy.loginfo(rospy.get_caller_id() + 'I heard: %s', data.data)
+    global start_sanitization_pressed
+    #if the start message was received set this variable to true
+    if (data.data=="start_sanitization"):
+        start_sanitization_pressed=True
         
 #this function is for subscribing to messages
 def listener():
@@ -89,46 +100,57 @@ def listener():
     # run simultaneously.
     #check for message on Topic
 
-    global reset, running #percent
+    global reset, running, start_sanitization_pressed, no_connection_confirmed #percent
 
     #this call creates a subscriber and defines message type and which topic it publishes to
     #whenever a message is received it calls the callback function
     rospy.Subscriber('/connection_test_rx', String, callback)
 
+    rospy.Subscriber('/sentry_control_topic', String, callback2)
+
     #this value is a sleep value
     rate = rospy.Rate(1) #1Hz
     
 
-    #while ROS is not shutdown via terminal etc, if the conditions are met:
+    #counting variable
     i = 0
+    #how much to count up to
     t = 30
-    
-    while not rospy.is_shutdown():
-   
-        # if (reset):
-        #     i = 0
-        #     reset = False
-        #     running=0
-
-
-        #elif (i==0)
-        
-        #    i = i + 1
-
-
-        if (i<t):
-            now = rospy.get_time()  
-            rospy.loginfo(now)
-            rospy.loginfo(i)
-            pub.publish(i)
-            i = i + 1
-        elif (i==t and running==False):
-            i = 0 
-            running = True
-            pub_heartbeat_ros_remote.publish("connection_test")          
-        elif (i==t and running==True):
+    #while ROS is not shutdown via terminal etc, if the conditions are met:
+    while not rospy.is_shutdown() :
+        #only if the user starts sanitization, start counting
+        if start_sanitization_pressed:
+            #if i is less than t
+            if (i<t):
+                now = rospy.get_time()  
+                rospy.loginfo(now)
+                rospy.loginfo(i)
+                #increment i
+                i = i + 1
+            #if i is the value of t and this is the first run or 
+            #the connection was confirmed
+            elif (i==t and running==False):
+                #reset i
+                i = 0 
+                #set running to true, so if in 30s no confirmation is received
+                #this condition will be skipped and the other one will be carried out
+                running = True
+                #request the remote to confrim its connection
+                pub_heartbeat_ros_remote.publish("connection_test")  
+            #if i is the value of t and no confirmation was received
+            #to set running to False        
+            elif (i==t and running==True):
+                #publish turn off sentry
+                pub_heartbeat_state_machine.publish("turn_off_sentry")
+            #wait for 1s
+            rate.sleep()
+        #if no conenction was seen within 30s after requesting it keep 
+        #publishing to turn off sentry
+        elif no_connection_confirmed:
+            #publish turn off sentry
             pub_heartbeat_state_machine.publish("turn_off_sentry")
-        rate.sleep()
+            #wait for 1s
+            rate.sleep()
 
 
     # spin() simply keeps python from exiting until this node is stopped
