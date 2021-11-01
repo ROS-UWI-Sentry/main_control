@@ -104,7 +104,7 @@ def listener():
 
     #this call creates a subscriber and defines message type and which topic it publishes to
     #whenever a message is received it calls the callback function
-    rospy.Subscriber('/connection_test_rx', String, callback)
+    rospy.Subscriber('/heartbeat_rx', String, callback)
 
     rospy.Subscriber('/sentry_control_topic', String, callback2)
 
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     #create a unique node
     rospy.init_node('heartbeat_ros_remote', anonymous=True)
     #create a publisher object and defines which topic it subscribes to
-    pub_heartbeat_ros_remote = rospy.Publisher('connection_test_tx', String, queue_size=10)
+    pub_heartbeat_ros_remote = rospy.Publisher('heartbeat_tx', String, queue_size=10)
 
     pub_heartbeat_state_machine = rospy.Publisher('sentry_control_topic', String, queue_size=10)
     
