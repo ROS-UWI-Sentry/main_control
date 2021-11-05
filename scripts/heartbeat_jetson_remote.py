@@ -55,8 +55,9 @@ reset = False
 #also it tells the counter if it has already passed 30s without 
 #receiving the connected message
 running = False
+#the connection request variable
 #this variable tells the node if the user has pressed the start button
-#so that it can only check for connection when santitation is happening
+#so that it can only check for connection when sanitation is happening
 start_sanitization_pressed = False
 #this variable is for if within 30s a connected  message was received or not
 no_connection_confirmed = False
