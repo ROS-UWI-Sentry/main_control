@@ -51,10 +51,10 @@ import thread
 
 
 reset = False
-#running is used to keep track of if connected message was received
+#awaiting_response is used to keep track of if connected message was received
 #also it tells the counter if it has already passed 30s without 
 #receiving the connected message
-running = False
+awaiting_response = False
 #the connection request variable
 #this variable tells the node if the user has pressed the start button
 #so that it can only check for connection when sanitation is happening
@@ -68,7 +68,7 @@ no_connection_confirmed = False
 #and it checks the value of the message and performs actions based on it
 def callback(data):
     rospy.loginfo(rospy.get_caller_id() + ' I heard: %s', data.data)
-    global reset, running #percent 
+    global reset, awaiting_response #percent 
 
     #check if the message recieved is "connected" so we know that the remote 
     #is connecte to rosbridge
@@ -76,9 +76,9 @@ def callback(data):
 
         rospy.loginfo("conencted")
         #if the browser returns that it is connected within 30s of requesting, 
-        #running is set to false
+        #awaiting_response is set to false
         #else if it remains true after 30s then the remote is not connected
-        running = False
+        awaiting_response = False
     
     else:
         rospy.logwarn("Incorrect data received.")
@@ -101,7 +101,7 @@ def listener():
     # run simultaneously.
     #check for message on Topic
 
-    global reset, running, start_sanitization_pressed, no_connection_confirmed #percent
+    global reset, awaiting_response, start_sanitization_pressed, no_connection_confirmed #percent
 
     #this call creates a subscriber and defines message type and which topic it publishes to
     #whenever a message is received it calls the callback function
@@ -130,17 +130,17 @@ def listener():
                 i = i + 1
             #if i is the value of t and this is the first run or 
             #the connection was confirmed
-            elif (i==t and running==False):
+            elif (i==t and awaiting_response==False):
                 #reset i
                 i = 0 
-                #set running to true, so if in 30s no confirmation is received
+                #set awaiting_response to true, so if in 30s no confirmation is received
                 #this condition will be skipped and the other one will be carried out
-                running = True
+                awaiting_response = True
                 #request the remote to confrim its connection
                 pub_heartbeat_ros_remote.publish("connection_test")  
             #if i is the value of t and no confirmation was received
-            #to set running to False        
-            elif (i==t and running==True):
+            #to set awaiting_response to False        
+            elif (i==t and awaiting_response==True):
                 #publish turn off sentry
                 pub_heartbeat_state_machine.publish("turn_off_sentry")
             #wait for 1s
