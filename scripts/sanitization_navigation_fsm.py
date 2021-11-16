@@ -8,9 +8,13 @@ from std_msgs.msg import Bool
 from std_msgs.msg import String
 import roslaunch
 
+##########VARIABLES##########
 
-
+#last_state is what the output to the lights was
+#used to prevent updating the value if it 
+#the same value as it was before
 last_state = False
+#publisher variables declaration:
 pub_light = rospy.Publisher('light_control', Bool, queue_size=500)
 pub_nav_control = rospy.Publisher('nav_control', String, queue_size=500)
 pub_timer_control = rospy.Publisher('timer_control_topic', String, queue_size=500)
@@ -18,7 +22,13 @@ pub_status_browser = rospy.Publisher('status', String, queue_size=500, latch=Tru
 
 has_human_detection_been_started=False
 
+
+
+##########STATE DECLARATIONS###########
+
 #state to startup ROSBRIDGE
+#Entering the first time starts up the launch file
+#Entering a second time shuts down the launch file
 class setup_state(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['next_state', 'Error', 'Turn_off'])
@@ -189,13 +199,17 @@ def monitor_cb_human_detection_started(ud, msg):
     global pub_light, pub_timer_control
     
     if msg.data=="human_detected_true":
-        ud.msg_data="turn_off_sentry"
+        #we need to ensure that the lights are off
+        #and to monitor for the resume signal we change states
         pub_light.publish(False)
-        rospy.loginfo('UV lights OFF')
-        pub_timer_control.publish("stop_timer") 
+        rospy.loginfo('UV lights OFF,Found a human')
+        #update the browser
+        pub_status_browser.publish("human_detected_true")
+        pub_timer_control.publish("pause_timer") 
+        ud.msg_data="go_to_monitor_control"
         return False
     elif msg.data=="human_detected_false":
-        #here the light it turned on because its after human detection
+        #here the light is turned on because its required after human detection
         #has started and also the timer must begin at the same time        
         pub_light.publish(True)
         rospy.loginfo('UV lights ON')
@@ -220,11 +234,14 @@ def monitor_cb_control(ud, msg):
     global last_state, pub_light, pub_timer_control
 
     if msg.data=="human_detected_true":
-        pub_timer_control.publish("stop_timer")
+        #ensure that the lights are off
+        #monitor for the resume signal
         pub_light.publish(False)
-        rospy.logwarn('Found a human, shutting down!')
-        ud.msg_data="turn_off_sentry"  
-        return False
+        rospy.logwarn('Found a human, awaiting response!')
+        #update the browser
+        pub_status_browser.publish("human_detected_true")
+        pub_timer_control.publish("pause_timer")
+        return True
     elif msg.data== "human_detected_false": 
         #do nothing
         return True

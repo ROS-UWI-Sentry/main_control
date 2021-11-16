@@ -43,7 +43,7 @@ from std_msgs.msg import Bool
 
 
 # Pin Definitions
-output_pin = 26  # BCM pin 18, BOARD pin 12
+output_pin = 32  # BOARD pin 32
 
 def callback(data):
     global curr_value
@@ -60,8 +60,8 @@ def listener():
     global curr_value
 
     # Pin Setup:
-    GPIO.setmode(GPIO.BCM)  # BCM pin-numbering scheme from Raspberry Pi
-    # set pin as an output pin with optional initial state of HIGH
+    GPIO.setmode(GPIO.BOARD)  # BOARD pin-numbering scheme
+    # set pin as an output pin with optional initial state of LOW
     GPIO.setup(output_pin, GPIO.OUT, initial=GPIO.LOW)
 
     print("Starting demo now! Press CTRL+C to exit")
