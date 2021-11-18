@@ -47,8 +47,18 @@ from std_msgs.msg import Int32
 from multiprocessing import Process, Pipe
 import thread
 
-#This node is a combination of a subscriber and publisher
+                        ###note###
+# ____________________________________________________
+#|This is a heartbeat to the Remote using a simple    |
+#|counter.                                            |
+#|See accompanying flowchart for overall operation    |
+#|This node is a combination of a subscriber          |
+#|and publisher.                                      |
+#|____________________________________________________|
 
+
+
+##########VARIABLES##########
 
 reset = False
 #awaiting_response is used to keep track of if connected message was received

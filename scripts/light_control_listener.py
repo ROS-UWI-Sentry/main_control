@@ -33,8 +33,16 @@
 #
 # Revision $Id$
 
-## Simple talker demo that listens to std_msgs/Strings published 
-## to the 'chatter' topic
+
+                        ###note###
+# ____________________________________________________
+#|This is a simple node that listens to commands from |
+#|the state machine and changes the output of the pin.|
+#|See accompanying flowchart for overall operation    |
+#|____________________________________________________|
+
+
+
 
 import RPi.GPIO as GPIO
 import time
@@ -42,17 +50,21 @@ import rospy
 from std_msgs.msg import Bool
 
 
-# Pin Definitions
+####### Pin Definitions ######
 output_pin = 32  # BOARD pin 32
 
+
+#this function is called whenever a new message comes in on the subscribed topic
 def callback(data):
     global curr_value
 
     rospy.loginfo(rospy.get_caller_id() + 'Node heard: %s', data.data)
     if data.data == True:
+        #set the output pin true if the message received is true
         curr_value= GPIO.HIGH
         GPIO.output(output_pin, curr_value)
     elif data.data == False:
+        #set the output pin true if the message received is true        
         curr_value= GPIO.LOW
         GPIO.output(output_pin, curr_value)
 
@@ -60,8 +72,8 @@ def listener():
     global curr_value
 
     # Pin Setup:
-    GPIO.setmode(GPIO.BOARD)  # BOARD pin-numbering scheme
-    # set pin as an output pin with optional initial state of LOW
+    GPIO.setmode(GPIO.BOARD)  # using the BOARD pin-numbering scheme
+    # set pin as an output pin with optional initial state of LOW:
     GPIO.setup(output_pin, GPIO.OUT, initial=GPIO.LOW)
 
     print("Starting demo now! Press CTRL+C to exit")
@@ -70,7 +82,7 @@ def listener():
 
 
 
-    #not ananymous so only one node can control pins at a time.
+    #not ananymous node so only one node can control pins at a time.
     rospy.init_node('light_control_listener')
 
     rospy.Subscriber('light_control', Bool, callback)

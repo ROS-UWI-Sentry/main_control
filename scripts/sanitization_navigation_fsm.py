@@ -8,13 +8,21 @@ from std_msgs.msg import Bool
 from std_msgs.msg import String
 import roslaunch
 
+
+                        ###note###
+# ____________________________________________________
+#|see accompanying flowchart for overall operation    |
+#|____________________________________________________|
+
+
+
 ##########VARIABLES##########
 
 #last_state is what the output to the lights was
 #used to prevent updating the value if it 
 #the same value as it was before
 last_state = False
-#publisher variables declaration:
+##########publisher variables declaration##############
 pub_light = rospy.Publisher('light_control', Bool, queue_size=500)
 pub_nav_control = rospy.Publisher('nav_control', String, queue_size=500)
 pub_timer_control = rospy.Publisher('timer_control_topic', String, queue_size=500)
@@ -67,32 +75,11 @@ class setup_state(smach.State):
             
             return 'Turn_off'
 
-#this function is called whenever a message is seen on the topic
-#it waits until the user selects start sanitization on the remote 
-#or selects shut down
-def monitor_cb_start_pressed(ud, msg):
-
-    #ud.msg_data=msg.data
-    #return False
-    
-    if msg.data=="start_sanitization":
-        ud.msg_data="start_human_detection"
-        return False
-    elif msg.data=="turn_off_sentry":
-        ud.msg_data=msg.data
-        return False
-    elif msg.data=="error_received":
-        ud.msg_data=msg.data
-        return False
-    else:    
-        rospy.logwarn("data either corrupt or ignored for this state")
-        return True
-
 
 #This state starts up/shuts down human detection and checks for other cases 
 class Control_human_detection(smach.State):
     def __init__(self):
-        smach.State.__init__(self, input_keys=['userdata_input'], output_keys=['userdata_output'], outcomes=['monitor_for_human_detection_started', 'Control_navigation', 'monitor_control', 'Turn_off', 'Error'])
+        smach.State.__init__(self, input_keys=['userdata_input'], output_keys=['userdata_output'], outcomes=['monitor_for_start', 'monitor_for_human_detection_started', 'Control_navigation', 'monitor_control', 'Turn_off', 'Error'])
 
 
     def execute(self, userdata):
@@ -100,6 +87,9 @@ class Control_human_detection(smach.State):
         
         #userdata.userdata_input is the value 
         #of the data sent into the state from another state
+        #based on this value, different code is ran
+
+
         if userdata.userdata_input == "start_human_detection":
 
             #Taken from the ros launch tutorial on running ros launch files in scripts
@@ -158,6 +148,18 @@ class Control_human_detection(smach.State):
             rospy.loginfo("detector ended")            
             return 'Turn_off'   
 
+        elif userdata.userdata_input == "monitor_for_start":
+            #this starts a script to pkill the human detector for a clean exit            
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+
+        
+            rospy.sleep(5)
+            self.launch.shutdown()
+            rospy.loginfo("detector ended")            
+            return 'monitor_for_start' 
 
         elif userdata.userdata_input == "error_received":
             #this starts a script to pkill the human detector for a clean exit            
@@ -191,6 +193,91 @@ class Control_human_detection(smach.State):
 
             return 'Error'
 
+
+#This state starts up/shuts down navigation and checks for other cases
+class Control_navigation(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, input_keys= ['userdata_input'],\
+         output_keys = ['userdata_output'], \
+         outcomes=['monitor_navigation','Control_human_detection', 'Turn_off', 'Error'])
+        self.init_var=0
+
+    def execute(self, userdata):
+        global pub_status_browser
+
+        #exectute commands to start the navigation module using code similar to human_detection state
+        
+        pub_status_browser.publish("Navigating the room")
+
+        #launch the launch file
+        if userdata.userdata_input=="start_navigation":
+            #launch the launch file
+
+            return 'monitor_navigation'
+
+        elif userdata.userdata_input=="goal_reached":
+            #shut down the node that was launched
+            userdata.userdata_output="start_human_detection"
+            return 'Control_human_detection'
+       
+        elif userdata.userdata_input=="turn_off_sentry":
+            #shut down the node that was launched
+            return 'Turn_off'
+
+        elif userdata.userdata_input=="all_goals_reached":
+            #shut down the node
+            pub_status_browser.publish("Sanitization Complete")
+            return 'Turn_off'
+        
+        
+        elif userdata.userdata_input=="error_received":
+            #shut down the node that was launched
+            return 'Error'        
+
+
+        else:
+            rospy.logwarn("Incorrect data received, error occured!")
+            #shutdown node
+            return 'Error'
+
+
+class Turn_off(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['Turn_off'])
+
+    def execute(self, userdata):
+        return 'Turn_off'
+
+class Error(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['Error'])
+
+    def execute(self, userdata):
+        return 'Error'
+
+
+################FUNCTION DECLARATIONS#############
+
+#this function is called whenever a message is seen on the topic
+#it waits until the user selects start sanitization on the remote 
+#or selects shut down
+def monitor_cb_start_pressed(ud, msg):
+
+    #ud.msg_data=msg.data
+    #return False
+    
+    if msg.data=="start_sanitization":
+        ud.msg_data="start_human_detection"
+        return False
+    elif msg.data=="turn_off_sentry":
+        ud.msg_data=msg.data
+        return False
+    elif msg.data=="error_received":
+        ud.msg_data=msg.data
+        return False
+    else:    
+        rospy.logwarn("data either corrupt or ignored for this state")
+        return True
 
 #this state waits until you get a msg from the human detection module
 #so you know it is running before turning on the lights
@@ -226,7 +313,7 @@ def monitor_cb_human_detection_started(ud, msg):
         rospy.logwarn("data either corrupt or ignored for this state")
         return True
 
-    
+   
 #this function is called whenever the /sentry_control_topic receives a message
 #it then checks what the message is and performs an action
 def monitor_cb_control(ud, msg):
@@ -250,7 +337,7 @@ def monitor_cb_control(ud, msg):
         #to ensure that the lights are off
         pub_light.publish(False)
         rospy.loginfo('UV lights OFF')
-        ud.msg_data="turn_off_sentry"
+        ud.msg_data="monitor_for_start"
         last_state=False
         return False
 
@@ -342,52 +429,8 @@ def monitor_cb_control(ud, msg):
         return False
 
 
-class Control_navigation(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, input_keys= ['userdata_input'],\
-         output_keys = ['userdata_output'], \
-         outcomes=['monitor_navigation','Control_human_detection', 'Turn_off', 'Error'])
-        self.init_var=0
-
-    def execute(self, userdata):
-        global pub_status_browser
-
-        #exectute commands to start the navigation module using code similar to human_detection state
-        
-        pub_status_browser.publish("Navigating the room")
-
-        #launch the launch file
-        if userdata.userdata_input=="start_navigation":
-            #launch the launch file
-
-            return 'monitor_navigation'
-
-        elif userdata.userdata_input=="goal_reached":
-            #shut down the node that was launched
-            userdata.userdata_output="start_human_detection"
-            return 'Control_human_detection'
-       
-        elif userdata.userdata_input=="turn_off_sentry":
-            #shut down the node that was launched
-            return 'Turn_off'
-
-        elif userdata.userdata_input=="all_goals_reached":
-            #shut down the node
-            pub_status_browser.publish("Sanitization Complete")
-            return 'Turn_off'
-        
-        
-        elif userdata.userdata_input=="error_received":
-            #shut down the node that was launched
-            return 'Error'        
-
-
-        else:
-            rospy.logwarn("Incorrect data received, error occured!")
-            #shutdown node
-            return 'Error'
-
-
+#this function is called whenever the /sentry_navigation_topic receives a message
+#it then checks what the message is and performs an action
 def monitor_cb_navigation(ud, msg):
     
 
@@ -406,21 +449,6 @@ def monitor_cb_navigation(ud, msg):
     else:    
         rospy.logwarn("data out of scope")
         return True
-
-
-class Turn_off(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['Turn_off'])
-
-    def execute(self, userdata):
-        return 'Turn_off'
-
-class Error(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['Error'])
-
-    def execute(self, userdata):
-        return 'Error'
 
 
 
@@ -454,6 +482,7 @@ def main():
 
         smach.StateMachine.add('Control_human_detection', Control_human_detection(),\
          transitions={\
+         'monitor_for_start':'monitor_for_start',\
          'monitor_for_human_detection_started':'monitor_for_human_detection_started',\
          'Control_navigation':'Control_navigation',\
          'monitor_control':'monitor_control',\

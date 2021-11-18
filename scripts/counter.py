@@ -33,7 +33,14 @@
 #
 # Revision $Id$
 
-## Simple counter
+                        ###note###
+# ____________________________________________________
+#|This is a simple counter.                           |
+#|See accompanying flowchart for overall operation    |
+#|This node is a combination of a subscriber          |
+#|and publisher.                                      |
+#|____________________________________________________|
+
 
 import rospy
 from std_msgs.msg import String
@@ -41,11 +48,16 @@ from std_msgs.msg import Int32
 from multiprocessing import Process, Pipe
 import thread
 
-#This node is a combination of a subscriber and publisher
 
+
+
+
+##########VARIABLES##########
+#to tell the counter to continue counting
 keepCounting = False
+#to reset the counter
 reset = False
-#percent = 0
+
 
 
 #this callback function gets called whenever a message is recieved
@@ -53,7 +65,7 @@ reset = False
 #and it checks the value of the message and performs actions based on it
 def callback(data):
     rospy.loginfo(rospy.get_caller_id() + ' I heard: %s', data.data)
-    global keepCounting, reset #percent 
+    global keepCounting, reset  
 
     
     #self reset timer 
