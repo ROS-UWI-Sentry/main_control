@@ -93,16 +93,18 @@ class Control_human_detection(smach.State):
         if userdata.userdata_input == "start_human_detection":
 
             #Taken from the ros launch tutorial on running ros launch files in scripts
+
+            #Launching a script to determine the amount of cameras attatched to the system
             self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(self.uuid)
-            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/main_control/launch/launch_source_counter.launch"])
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/main_control/launch/launch_webcam_counter.launch"])
             self.launch.start()
             rospy.sleep(1)
             self.launch.shutdown()
 
             #Here the amount of cameras attatched to the system is checked
 
-            with open("/home/uwi/catkin_ws/src/main_control/launch/streams.txt") as f:
+            with open("/home/uwi/catkin_ws/src/main_control/launch/webcam_detected_result.txt") as f:
                 temp=f.readlines()
             
             #if no cameras are attatched the system performs this
