@@ -4,7 +4,7 @@ It also holds the files used for main control of the sentry robot.
 Also inculed is the heartbeat ROS node script.
 There are flow charts and diagrams that aid with the explination of each script that is used in the final robot. No diagrams for testing scripts.
 
-#### Nodes that need to be running for operation. These should be started with the launch file.
+###### Nodes that need to be running for operation. These should be started with the launch file.
 
 **main_control/sanitization_navigation_fsm.py**
 **main_control/counter.py**
