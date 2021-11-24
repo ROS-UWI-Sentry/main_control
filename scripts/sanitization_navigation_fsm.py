@@ -22,11 +22,14 @@ import roslaunch
 #used to prevent updating the value if it 
 #the same value as it was before
 last_state = False
+#to know if a human_has been detection so
+#it won't publish it constantly to the remote
+human_detected_once=False
 ##########publisher variables declaration##############
 pub_light = rospy.Publisher('light_control', Bool, queue_size=500)
 pub_nav_control = rospy.Publisher('nav_control', String, queue_size=500)
 pub_timer_control = rospy.Publisher('timer_control_topic', String, queue_size=500)
-pub_status_browser = rospy.Publisher('status', String, queue_size=500, latch=True)
+pub_status_remote = rospy.Publisher('status', String, queue_size=500, latch=True)
 
 has_human_detection_been_started=False
 
@@ -57,22 +60,20 @@ class setup_state(smach.State):
 
 
         if self.init_var==0:
-            #Taken from the ros launch tutorial on running ros launch files in scripts
-            self.package = 'rosbridge_server'
-            self.executable = 'rosbridge_websocket'
-            self.node = roslaunch.core.Node(self.package, self.executable)
-            self.launch = roslaunch.scriptapi.ROSLaunch()
-            self.launch.start()
-            self.process=self.launch.launch(self.node)
-            rospy.loginfo(self.process.is_alive())
+        #     #Taken from the ros launch tutorial on running ros launch files in scripts
+        #     self.package = 'rosbridge_server'
+        #     self.executable = 'rosbridge_websocket'
+        #     self.node = roslaunch.core.Node(self.package, self.executable)
+        #     self.launch = roslaunch.scriptapi.ROSLaunch()
+        #     self.launch.start()
+        #     self.process=self.launch.launch(self.node)
+        #     rospy.loginfo(self.process.is_alive())
             self.init_var = self.init_var + 1
          
             return 'next_state'
         elif self.init_var >= 1:
-
-            self.process.stop()
-
-            
+        #     self.launch.shutdown()
+        #     self.process.stop()
             return 'Turn_off'
 
 
@@ -83,7 +84,7 @@ class Control_human_detection(smach.State):
 
 
     def execute(self, userdata):
-        global pub_timer_control, pub_light, pub_status_browser
+        global pub_timer_control, pub_light, pub_status_remote
         
         #userdata.userdata_input is the value 
         #of the data sent into the state from another state
@@ -110,11 +111,11 @@ class Control_human_detection(smach.State):
             #if no cameras are attatched the system performs this
             if len(temp) == 0:
                 rospy.logwarn("No cameras detected")
-                pub_status_browser.publish("NO CAMERAS DETECTED, SHUTTING DOWN")
+                pub_status_remote.publish("NO CAMERAS DETECTED, SHUTTING DOWN")
                 return 'Turn_off'
             #if cameras are detected the human detector is started
             else:
-                pub_status_browser.publish("Starting up Human Detection")
+                pub_status_remote.publish("Starting up Human Detection")
                 self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
                 roslaunch.configure_logging(self.uuid)
                 self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/launch_detector.launch"])
@@ -205,11 +206,11 @@ class Control_navigation(smach.State):
         self.init_var=0
 
     def execute(self, userdata):
-        global pub_status_browser
+        global pub_status_remote
 
         #exectute commands to start the navigation module using code similar to human_detection state
         
-        pub_status_browser.publish("Navigating the room")
+        pub_status_remote.publish("Navigating the room")
 
         #launch the launch file
         if userdata.userdata_input=="start_navigation":
@@ -228,7 +229,7 @@ class Control_navigation(smach.State):
 
         elif userdata.userdata_input=="all_goals_reached":
             #shut down the node
-            pub_status_browser.publish("Sanitization Complete")
+            pub_status_remote.publish("Sanitization Complete")
             return 'Turn_off'
         
         
@@ -292,8 +293,8 @@ def monitor_cb_human_detection_started(ud, msg):
         #and to monitor for the resume signal we change states
         pub_light.publish(False)
         rospy.loginfo('UV lights OFF,Found a human')
-        #update the browser
-        pub_status_browser.publish("human_detected_true")
+        #update the remote
+        pub_status_remote.publish("human_detected_true")
         pub_timer_control.publish("pause_timer") 
         ud.msg_data="go_to_monitor_control"
         return False
@@ -315,24 +316,66 @@ def monitor_cb_human_detection_started(ud, msg):
         rospy.logwarn("data either corrupt or ignored for this state")
         return True
 
+
+# #this state is transitioned into when a human is detected
+# #so that yolov5 doesn't have to be restarted
+# #and the remote isn't constantly remined that a human is in the room 
+# def monitor_for_restart_after_human_detected(ud, msg):
+
+#     global pub_light, pub_timer_control
+    
+#     if msg.data=="human_detected_true":
+#         #we need to ensure that the lights are off
+#         #and to monitor for the resume signal we change states
+#         pub_light.publish(False)
+#         rospy.loginfo('UV lights OFF,Found a human')
+#         #update the remote
+#         pub_status_remote.publish("human_detected_true")
+#         pub_timer_control.publish("pause_timer") 
+#         ud.msg_data="go_to_monitor_control"
+#         return False
+#     elif msg.data=="human_detected_false":
+#         #here the light is turned on because its required after human detection
+#         #has started and also the timer must begin at the same time        
+#         pub_light.publish(True)
+#         rospy.loginfo('UV lights ON')
+#         pub_timer_control.publish("start_timer")        
+#         ud.msg_data="go_to_monitor_control"
+#         return False
+#     elif msg.data=="error_received":
+#         ud.msg_data=msg.data
+#         pub_light.publish(False)
+#         rospy.loginfo('UV lights OFF')
+#         pub_timer_control.publish("stop_timer") 
+#         return False
+#     else:    
+#         rospy.logwarn("data either corrupt or ignored for this state")
+#         return True
    
 #this function is called whenever the /sentry_control_topic receives a message
 #it then checks what the message is and performs an action
 def monitor_cb_control(ud, msg):
     
-    global last_state, pub_light, pub_timer_control
+    global last_state, pub_light, pub_timer_control, human_detected_once
 
     if msg.data=="human_detected_true":
         #ensure that the lights are off
-        #monitor for the resume signal
         pub_light.publish(False)
         rospy.logwarn('Found a human, awaiting response!')
-        #update the browser
-        pub_status_browser.publish("human_detected_true")
-        pub_timer_control.publish("pause_timer")
+        if (not human_detected_once):
+            #update the remote:
+            pub_status_remote.publish("human_detected_true")
+            pub_timer_control.publish("pause_timer")
+            #so that this is published once
+            #not every time this message comes in,
+            human_detected_once=True
         return True
     elif msg.data== "human_detected_false": 
-        #do nothing
+        #so that after the human is removed from the room
+        #we can now resend the signal to the remote
+        #if another human is detected
+        if(human_detected_once):
+            human_detected_once=False
         return True
     elif msg.data== "stop_sanitization":
         pub_timer_control.publish("stop_timer")
@@ -503,6 +546,16 @@ def main():
          'invalid':'Control_human_detection',\
          'valid':'monitor_for_human_detection_started',\
          'preempted':'monitor_for_human_detection_started'})
+
+        # #this is a monitor state
+        # #it is a template from the smach tutorials
+        # smach.StateMachine.add('monitor_for_restart_after_human_detected', smach_ros.MonitorState("/sentry_control_topic", \
+        # String, monitor_cb_restart_after_human_detected,\
+        # output_keys=['msg_data']),\
+        #  transitions={\
+        #  'invalid':'Control_human_detection',\
+        #  'valid':'monitor_for_restart_after_human_detected',\
+        #  'preempted':'monitor_for_restart_after_human_detected'})        
 
         #this is a monitor state
         #it is a template from the smach tutorials

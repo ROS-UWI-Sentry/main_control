@@ -1,6 +1,6 @@
 <launch>
 
-    <node pkg="main_control" type="source_counter.sh" name="webcam_counter"/>
+    <node pkg="main_control" type="webcam_counter.sh" name="webcam_counter"/>
 
 
 

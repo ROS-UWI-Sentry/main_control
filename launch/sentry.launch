@@ -1,0 +1,12 @@
+<launch>
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/> 
+    <node pkg="main_control" type="sanitization_navigation_fsm.py" name="main_control"  required ="true"/>
+    <node pkg="main_control" type="counter.py" name="counter" />
+    <node pkg="remote_communication" type="browser_reports.py" name="browser_reports"/>
+    <node pkg="remote_communication" type="heartbeat_jetson_remote.py" name="heartbeat"/>
+    <node pkg="light_control" type="light_control_listener.py" name="light_control_listener"/>
+
+</launch>
+
+
+
