@@ -27,9 +27,15 @@ remote_server
 
 ###Required ROS packages:
 ROSBridge
-roslibpy (for yolov5 script to communicate with ROS)
+roslibpy (for yolov5 python script to communicate with ROS)
 roslibjs (for remote's javascript to communicate with ROS)
 
+###Required Python packages:
+[Jetson.GPIO](https://github.com/NVIDIA/jetson-gpio#installation)
+and Others listed for the yolov5 installation
+
+###Other info:
+[Tutorial for communicating with ROS from a web UI](https://medium.com/husarion-blog/bootstrap-4-ros-creating-a-web-ui-for-your-robot-9a77a8e373f9)
 
 ### Script names of Nodes that need to be running for operation. These should be started with the launch file so no need to launch them individually.
 
@@ -57,6 +63,7 @@ There are instructions for YOLOV5 install on the Google Drive. Because the Jetso
 The detect.py file must be the same as the Sentry repository.
 Can clone that repo then follow the install instructions to have the same version.
 
+###NOTE:
 There are several scripts where files are read and written to. In some cases this file is found by using a path. This path has the name of the user account of the Ubuntu system so it must be changed so the script can find the file. To find all files that need this go to the ROS-UWI-Sentry github organisation and search for /home/uwi/catkin to find the files. Files inside of testing and unused folders can be ignored.
 For example: the saving and loading of reports a path to the text file is needed.
 This path changes depending on the user name. Look under remote_reports.py.

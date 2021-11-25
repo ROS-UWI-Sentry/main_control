@@ -110,7 +110,7 @@ class Control_human_detection(smach.State):
             
             #if no cameras are attatched the system performs this
             if len(temp) == 0:
-                rospy.logwarn("No cameras detected")
+                rospy.logwarn("No cameras detected, turning off")
                 pub_status_remote.publish("NO CAMERAS DETECTED, SHUTTING DOWN")
                 return 'Turn_off'
             #if cameras are detected the human detector is started
@@ -150,6 +150,19 @@ class Control_human_detection(smach.State):
             self.launch.shutdown()
             rospy.loginfo("detector ended")            
             return 'Turn_off'   
+
+        elif userdata.userdata_input == "turn_off_sanitization":
+            #this starts a script to pkill the human detector for a clean exit            
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+
+        
+            rospy.sleep(5)
+            self.launch.shutdown()
+            rospy.loginfo("detector ended")            
+            return 'monitor_for_start'   
 
         elif userdata.userdata_input == "monitor_for_start":
             #this starts a script to pkill the human detector for a clean exit            
@@ -278,6 +291,8 @@ def monitor_cb_start_pressed(ud, msg):
     elif msg.data=="error_received":
         ud.msg_data=msg.data
         return False
+    elif msg.data=="turn_off_sanitization":
+        return True
     else:    
         rospy.logwarn("data either corrupt or ignored for this state")
         return True
@@ -362,6 +377,8 @@ def monitor_cb_control(ud, msg):
         #ensure that the lights are off
         pub_light.publish(False)
         rospy.logwarn('Found a human, awaiting response!')
+        #pause the timer
+        pub_timer_control.publish("pause_timer")
         if (not human_detected_once):
             #update the remote:
             pub_status_remote.publish("human_detected_true")
@@ -422,10 +439,18 @@ def monitor_cb_control(ud, msg):
         #     ud.msg_data="turn_off_human_detection"
         #     return False   
   
+
+    elif msg.data== "turn_off_sanitization":
+        pub_timer_control.publish("stop_timer")
+        pub_light.publish(False)
+        rospy.loginfo('UV lights OFF, turn_off_sanitization')
+        ud.msg_data="turn_off_sanitization"
+        return False
+
     elif msg.data== "turn_off_sentry":
         pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
-        rospy.loginfo('UV lights OFF')
+        rospy.loginfo('UV lights OFF, turn_off_sentry')
         ud.msg_data="turn_off_sentry"
         return False
 
