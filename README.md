@@ -60,7 +60,8 @@ and Others listed for the yolov5 installation
 **ROSBridge:**
 To allow the remote to communicate using ROS protocols.
 There was a bug where after refreshing the page the publisher would not work again, this is a common complaint for ROSBridge and a quick solution was setting a large timeout time in the launch file. 
-[Issue and quick solution:...](https://github.com/RobotWebTools/rosbridge_suite/issues/298)
+[Issue and quick solution:...](https://github.com/RobotWebTools/rosbridge_suite/issues/298#issuecomment-842357768)
+Edit "unregister_timeout" parameter to 1000000 located in /opt/ros/melodic/share/rosbridge_server/launch
 
 **YOLOv5:**
 There are instructions for YOLOV5 install on the Google Drive. Because the Jetson AGX is an embedded system the installation is not as straightforward.
