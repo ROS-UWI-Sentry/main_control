@@ -81,13 +81,13 @@ def callback(data):
     if (data.data=="start_timer"): #this also continues timing
         keepCounting = True
         reset = False
-        rospy.loginfo("started")
+        rospy.loginfo(rospy.get_caller_id() + " started")
         #pub2.publish("timer_started")
         
     elif (data.data=="pause_timer"):
         keepCounting = False
         reset = False
-        rospy.loginfo("paused")
+        rospy.loginfo(rospy.get_caller_id() + " paused")
         #pub2.publish("timer_paused")
 
     elif (data.data=="stop_timer"):
@@ -137,8 +137,8 @@ def listener():
             #rospy.loginfo(now.secs)
             
             
-            rospy.loginfo(now)
-            rospy.loginfo(i)
+            #rospy.loginfo(now)
+            #rospy.loginfo(i)
             pub.publish(i)
             i = i + 1
         elif (i==t):

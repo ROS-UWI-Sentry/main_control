@@ -36,9 +36,10 @@ See Google Drive Additional Resources [Flashing the Jetson...](https://docs.goog
 and Others listed for the yolov5 installation
 
 ### Other info:
+Check the README's for each package to see information on running them, if necessary.
 [Tutorial for communicating with ROS from a web UI](https://medium.com/husarion-blog/bootstrap-4-ros-creating-a-web-ui-for-your-robot-9a77a8e373f9)
-
-### Script names of Nodes that need to be running for operation. These should be started with the launch file so no need to launch them individually.
+### The launch file is in main_control/launch/sentry.launch
+### Script names of Nodes that need to be running for operation. These should be started with the launch, sentry.launch, file so no need to launch them individually.
 
 - **main_control/sanitization_navigation_fsm.py**
 - **main_control/counter.py**
@@ -69,7 +70,7 @@ The detect.py file must be the same as the Sentry repository.
 Can clone that repo then follow the install instructions to have the same version.
 
 ### NOTE:
-There are several scripts where files are read and written to. In some cases this file is found by using a path. This path has the name of the user account of the Ubuntu system so it must be changed so the script can find the file. To find all files that need this go to the ROS-UWI-Sentry github organisation and search for /home/uwi/catkin to find the files. Files inside of testing and unused folders can be ignored.
+There are several scripts where files are read and written to. In some cases this file is found by using a path. This path has the name of the user account of the Ubuntu system so it must be changed so the script can find the file. To find all files that need this go to the ROS-UWI-Sentry github organisation and search for /home/uwi/catkin then Code section, to find the files. Files inside of testing and unused folders can be ignored. (the username may change in the future depending on the username of the system it is insalled on)
 For example: the saving and loading of reports a path to the text file is needed.
 This path changes depending on the user name. Look under remote_reports.py.
 A future upgrade could be to save this file in a local that doesn't depend on user name. 
@@ -84,3 +85,5 @@ A future upgrade could be to save this file in a local that doesn't depend on us
 5. light_control_listener listens for messages about light control from fsm. Based on the message it outputs a high or a low to a pin on the AGX. 
 6. launch/end_detector are called by fsm to start and cleanly stop the yolov5 human detetor.
 7. launch_webcam_counter is run by the state mahcine when starting up yolov5 to find out how many cameras are attatched so the sript won't crash if none are detected.
+
+## Note: If launching with the launch file, if sanitization_navigation_fsm.py goes down, all other nodes go down. This was manually set because they all depend upon the fsm.
