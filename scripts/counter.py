@@ -120,7 +120,7 @@ def listener():
 
     #while ROS is not shutdown via terminal etc, if the conditions are met, publish counting from 0 to 100
     i = 0
-    t = 30
+    t = 5 #30
     while not rospy.is_shutdown():
    
         if (not keepCounting and not reset):

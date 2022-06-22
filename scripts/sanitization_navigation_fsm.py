@@ -228,26 +228,31 @@ class Control_navigation(smach.State):
         #launch the launch file
         if userdata.userdata_input=="start_navigation":
             #launch the launch file
+            pub_nav_control.publish("navigation_active")
 
             return 'monitor_navigation'
 
         elif userdata.userdata_input=="goal_reached":
             #shut down the node that was launched
+            pub_nav_control.publish("navigation_inactive")
             userdata.userdata_output="start_human_detection"
             return 'Control_human_detection'
        
         elif userdata.userdata_input=="turn_off_sentry":
             #shut down the node that was launched
+            pub_nav_control.publish("navigation_inactive")
             return 'Turn_off'
 
         elif userdata.userdata_input=="all_goals_reached":
             #shut down the node
+            pub_nav_control.publish("navigation_inactive")
             pub_status_remote.publish("Sanitization Complete")
             return 'Turn_off'
         
         
         elif userdata.userdata_input=="error_received":
             #shut down the node that was launched
+            pub_nav_control.publish("navigation_inactive")
             return 'Error'        
 
 
@@ -491,6 +496,13 @@ def monitor_cb_control(ud, msg):
         else:
             rospy.loginfo(rospy.get_caller_id() + 'UV lights ON')
             return True         
+
+    elif msg.data=="all_goals_reached":
+        rospy.logwarn(rospy.get_caller_id() +"nav data")
+        return True
+    elif msg.data=="goal_reached":
+        rospy.logwarn(rospy.get_caller_id() +"nav data")
+        return True
     else:
         #if none of the data is recognised return incorrect data to control human detection
         pub_timer_control.publish("stop_timer")
