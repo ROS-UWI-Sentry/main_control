@@ -6,6 +6,12 @@
     <node pkg="remote_communication" type="heartbeat_jetson_remote.py" name="heartbeat" output="screen"/>
     <node pkg="light_control" type="light_control_listener.py" name="light_control_listener" output="screen"/>
 
+    <node pkg="explore_sentry" type="lidar3d_sensor.py" name="lidar3d_sensor" output="screen"/>
+    <node pkg="explore_sentry" type="controls_act.py" name="controls_act" output="screen"/>
+    <node pkg="explore_sentry" type="state_machine_demo.py" name="state_machine_demo" output="screen"/>
+    <node pkg="explore_sentry" type="system_model.py" name="system_model" output="screen"/>
+
+
 </launch>
 
 
