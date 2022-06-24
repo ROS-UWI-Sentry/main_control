@@ -54,62 +54,26 @@ class setup_state(smach.State):
 
         #this variable allows to use this state differently
         #depending on if its the first or second time you enter it
-        #setup when entered the first time
-        #kill stuff when entered the second time
         self.init_var = 0
 
     def execute(self, userdata):
+
+
         if self.init_var==0:
-            #start up human detection
-
-            #Taken from the ros launch tutorial on running ros launch files in scripts
-
-            #Launching a script to determine the amount of cameras attatched to the system
-            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            roslaunch.configure_logging(self.uuid)
-            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/main_control/launch/launch_webcam_counter.launch"])
-            self.launch.start()
-            rospy.sleep(1)
-            self.launch.shutdown()
-
-            #Here the amount of cameras attatched to the system is checked
-
-            with open("/home/uwi-sentry-agx/catkin_ws/src/main_control/launch/webcam_detected_result.txt") as f:
-                temp=f.readlines()
-          
-            #if no cameras are attatched the system performs this
-            if len(temp) == 0:
-                rospy.logwarn(rospy.get_caller_id() +" No cameras detected, turning off")
-                pub_status_remote.publish("NO CAMERAS DETECTED, SHUTTING DOWN")
-                self.init_var = self.init_var + 1
-                return 'Turn_off'
-            #if cameras are detected the human detector is started
-            else:
-                for camera in range(len(temp)):
-                    rospy.logwarn("camera found at: " + str(temp[camera]))
-                pub_status_remote.publish("Starting up Human Detection")
-                self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-                roslaunch.configure_logging(self.uuid)
-                self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/launch_detector.launch"])
-                self.launch.start()
-                rospy.loginfo(rospy.get_caller_id() + "detector started")
-                
-                self.init_var = self.init_var + 1
-                return 'next_state'    
+        #     #Taken from the ros launch tutorial on running ros launch files in scripts
+        #     self.package = 'rosbridge_server'
+        #     self.executable = 'rosbridge_websocket'
+        #     self.node = roslaunch.core.Node(self.package, self.executable)
+        #     self.launch = roslaunch.scriptapi.ROSLaunch()
+        #     self.launch.start()
+        #     self.process=self.launch.launch(self.node)
+        #     rospy.loginfo(self.process.is_alive())
+            self.init_var = self.init_var + 1
+         
+            return 'next_state'
         elif self.init_var >= 1:
-            #this starts a script to pkill the human detector for a clean exit
-            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            roslaunch.configure_logging(self.uuid)
-            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/end_detector.launch"])
-            self.launch.start()
-            
-        
-            rospy.sleep(5)
-            self.launch.shutdown()
-            userdata.userdata_output="start_navigation"
-            rospy.loginfo(rospy.get_caller_id() + "detector ended")
-
-
+        #     self.launch.shutdown()
+        #     self.process.stop()
             return 'Turn_off'
 
 
@@ -129,38 +93,120 @@ class Control_human_detection(smach.State):
 
         if userdata.userdata_input == "start_human_detection":
 
-                pub_status_remote.publish("sanitizing point now")
+            #Taken from the ros launch tutorial on running ros launch files in scripts
+
+            #Launching a script to determine the amount of cameras attatched to the system
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/main_control/launch/launch_webcam_counter.launch"])
+            self.launch.start()
+            rospy.sleep(1)
+            self.launch.shutdown()
+
+            #Here the amount of cameras attatched to the system is checked
+
+            with open("/home/uwi-sentry-agx/catkin_ws/src/main_control/launch/webcam_detected_result.txt") as f:
+                temp=f.readlines()
+            
+            #if no cameras are attatched the system performs this
+            if len(temp) == 0:
+                rospy.logwarn(rospy.get_caller_id() +" No cameras detected, turning off")
+                pub_status_remote.publish("NO CAMERAS DETECTED, SHUTTING DOWN")
+                return 'Turn_off'
+            #if cameras are detected the human detector is started
+            else:
+                pub_status_remote.publish("Starting up Human Detection")
+                self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+                roslaunch.configure_logging(self.uuid)
+                self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/launch_detector.launch"])
+                self.launch.start()
+                rospy.loginfo(rospy.get_caller_id() + "detector started")
                 return 'monitor_for_human_detection_started'
 
 
         elif userdata.userdata_input == "turn_off_human_detection":
+            #this starts a script to pkill the human detector for a clean exit
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+           
+        
+            rospy.sleep(5)
+            self.launch.shutdown()
             userdata.userdata_output="start_navigation"
-
+            rospy.loginfo(rospy.get_caller_id() + "detector ended")
             return 'Control_navigation'
 
         elif userdata.userdata_input == "turn_off_sentry":
-          
-      
+            #this starts a script to pkill the human detector for a clean exit            
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+
+        
+            rospy.sleep(5)
+            self.launch.shutdown()
+            rospy.loginfo(rospy.get_caller_id() + "detector ended")            
             return 'Turn_off'   
 
         elif userdata.userdata_input == "turn_off_sanitization":
-         
+            #this starts a script to pkill the human detector for a clean exit            
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+
+        
+            rospy.sleep(5)
+            self.launch.shutdown()
+            rospy.loginfo(rospy.get_caller_id() + "detector ended")            
             return 'monitor_for_start'   
 
         elif userdata.userdata_input == "monitor_for_start":
+            #this starts a script to pkill the human detector for a clean exit            
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
 
+        
+            rospy.sleep(5)
+            self.launch.shutdown()
+            rospy.loginfo(rospy.get_caller_id() + "detector ended")            
             return 'monitor_for_start' 
 
         elif userdata.userdata_input == "error_received":
+            #this starts a script to pkill the human detector for a clean exit            
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+
         
+            rospy.sleep(5)
+            self.launch.shutdown()
+            rospy.loginfo(rospy.get_caller_id() + "error occured")            
             return 'Error'   
 
         elif userdata.userdata_input == "go_to_monitor_control":
-            pub_status_remote.publish("human detection started up successfully")
             return 'monitor_control'
         
         else:
-      
+            rospy.logwarn(rospy.get_caller_id() +" Incorrect data received, error occured!")
+
+            self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            roslaunch.configure_logging(self.uuid)
+            self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/end_detector.launch"])
+            self.launch.start()
+
+
+            rospy.sleep(5)
+            self.launch.shutdown()
+            
+            rospy.loginfo(rospy.get_caller_id() + "detector ended")            
+
             return 'Error'
 
 
@@ -252,10 +298,6 @@ def monitor_cb_start_pressed(ud, msg):
         return False
     elif msg.data=="turn_off_sanitization":
         return True
-    elif msg.data=="human_detected_false":
-        return True
-    elif msg.data=="human_detected_true":
-        return True
     else:    
         rospy.logwarn(rospy.get_caller_id() +" data either corrupt or ignored for this state")
         return True
@@ -290,15 +332,6 @@ def monitor_cb_human_detection_started(ud, msg):
         rospy.loginfo(rospy.get_caller_id() + 'UV lights OFF')
         pub_timer_control.publish("stop_timer") 
         return False
-    elif msg.data=="turn_off_sentry":
-        pub_light.publish(False)
-        ud.msg_data=msg.data
-        return False
-    elif msg.data=="turn_off_sanitization":
-        pub_light.publish(False)
-        ud.msg_data=msg.data
-        return False
-
     else:    
         rospy.logwarn(rospy.get_caller_id() +" data either corrupt or ignored for this state")
         return True
@@ -498,10 +531,6 @@ def monitor_cb_navigation(ud, msg):
     elif msg.data=="all_goals_reached":
         ud.msg_data=msg.data
         return False
-    elif msg.data=="human_detected_false":
-        return True
-    elif msg.data=="human_detected_true":
-        return True
     else:    
         rospy.logwarn(rospy.get_caller_id() +" data out of scope")
         return True
