@@ -1,15 +1,17 @@
 <launch>
     <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/> 
+    <include file="$(find human_detection)/launch/launch_detector.launch"/>
     <node pkg="main_control" type="sanitization_navigation_fsm.py" name="main_control"  required ="true" output="screen"/>
     <node pkg="main_control" type="counter.py" name="counter" output="screen"/>
-    <node pkg="remote_communication" type="browser_reports.py" name="browser_reports" output="screen"/>
-    <node pkg="remote_communication" type="heartbeat_jetson_remote.py" name="heartbeat" output="screen"/>
+    <node pkg="remote_communication" type="browser_reports.py" name="browser_reports" />
+    <node pkg="remote_communication" type="heartbeat_jetson_remote.py" name="heartbeat" />
     <node pkg="light_control" type="light_control_listener.py" name="light_control_listener" output="screen"/>
 
-    <node pkg="explore_sentry" type="lidar3d_sensor.py" name="lidar3d_sensor" output="screen"/>
-    <node pkg="explore_sentry" type="controls_act.py" name="controls_act" output="screen"/>
-    <node pkg="explore_sentry" type="state_machine_demo.py" name="state_machine_demo" output="screen"/>
-    <node pkg="explore_sentry" type="system_model.py" name="system_model" output="screen"/>
+    <node pkg="explore_sentry" type="lidar3d_sensor.py" name="lidar3d_sensor"/>
+    <node pkg="explore_sentry" type="controls_act.py" name="controls_act" />
+    <node pkg="explore_sentry" type="state_machine_demo.py" name="state_machine_demo" />
+    <node pkg="explore_sentry" type="system_model.py" name="system_model" />
+    <node pkg="ard_com" type="ard_com_rec.py" name="ard_com_rec" />
 
 
 </launch>

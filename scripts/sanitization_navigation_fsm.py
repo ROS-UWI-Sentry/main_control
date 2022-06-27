@@ -60,7 +60,8 @@ class setup_state(smach.State):
 
     def execute(self, userdata):
         if self.init_var==0:
-            #start up human detection
+            
+            '''#start up human detection
 
             #Taken from the ros launch tutorial on running ros launch files in scripts
 
@@ -92,10 +93,10 @@ class setup_state(smach.State):
                 roslaunch.configure_logging(self.uuid)
                 self.launch = roslaunch.parent.ROSLaunchParent(self.uuid, ["/home/uwi-sentry-agx/catkin_ws/src/human_detection/launch/launch_detector.launch"])
                 self.launch.start()
-                rospy.loginfo(rospy.get_caller_id() + "detector started")
+                rospy.loginfo(rospy.get_caller_id() + "detector started")'''
                 
                 self.init_var = self.init_var + 1
-                return 'next_state'    
+            return 'next_state'    
         elif self.init_var >= 1:
             #this starts a script to pkill the human detector for a clean exit
             self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
