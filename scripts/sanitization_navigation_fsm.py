@@ -44,13 +44,14 @@ class setup_state(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['next_state', 'Error', 'Turn_off'])
         #setup publisher
-        global pub_timer_control
+        global pub_timer_control, last_state
 
         #to reset the timer to zero
         pub_timer_control.publish("stop_timer")       
 
         #to ensure the light is off
         pub_light.publish(False)
+        last_state = False
 
         #this variable allows to use this state differently
         #depending on if its the first or second time you enter it
@@ -95,7 +96,7 @@ class setup_state(smach.State):
                 self.launch.start()
                 rospy.loginfo(rospy.get_caller_id() + "detector started")'''
                 
-                self.init_var = self.init_var + 1
+            self.init_var = self.init_var + 1
             return 'next_state'    
         elif self.init_var >= 1:
             #this starts a script to pkill the human detector for a clean exit
@@ -265,38 +266,45 @@ def monitor_cb_start_pressed(ud, msg):
 #so you know it is running before turning on the lights
 def monitor_cb_human_detection_started(ud, msg):
 
-    global pub_light, pub_timer_control
+    global pub_light, pub_timer_control, human_detected_once, last_state
     
     if msg.data=="human_detected_true":
         #we need to ensure that the lights are off
         #and to monitor for the resume signal we change states
         pub_light.publish(False)
+        last_state = False
         rospy.loginfo(rospy.get_caller_id() + 'UV lights OFF,Found a human')
         #update the remote
         pub_status_remote.publish("human_detected_true")
-        pub_timer_control.publish("pause_timer") 
+        pub_timer_control.publish("pause_timer")
+        human_detected_once = True 
         ud.msg_data="go_to_monitor_control"
         return False
     elif msg.data=="human_detected_false":
         #here the light is turned on because its required after human detection
         #has started and also the timer must begin at the same time        
         pub_light.publish(True)
+        last_state = True
         rospy.loginfo(rospy.get_caller_id() + 'UV lights ON')
-        pub_timer_control.publish("start_timer")        
+        pub_timer_control.publish("start_timer") 
+        human_detected_once = False       
         ud.msg_data="go_to_monitor_control"
         return False
     elif msg.data=="error_received":
         ud.msg_data=msg.data
         pub_light.publish(False)
+        last_state = False
         rospy.loginfo(rospy.get_caller_id() + 'UV lights OFF')
         pub_timer_control.publish("stop_timer") 
         return False
     elif msg.data=="turn_off_sentry":
         pub_light.publish(False)
+        last_state = False
         ud.msg_data=msg.data
         return False
     elif msg.data=="turn_off_sanitization":
         pub_light.publish(False)
+        last_state = False
         ud.msg_data=msg.data
         return False
 
@@ -349,6 +357,7 @@ def monitor_cb_control(ud, msg):
     if msg.data=="human_detected_true":
         #ensure that the lights are off
         pub_light.publish(False)
+        last_state=False
         rospy.logwarn(rospy.get_caller_id() +' Found a human, awaiting response!')
         #pause the timer
         pub_timer_control.publish("pause_timer")
@@ -417,6 +426,7 @@ def monitor_cb_control(ud, msg):
     elif msg.data== "turn_off_sanitization":
         pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
+        last_state = False
         rospy.loginfo(rospy.get_caller_id() + 'UV lights OFF, turn_off_sanitization')
         ud.msg_data="turn_off_sanitization"
         human_detected_once=False #to prevent this variable remaining true
@@ -425,6 +435,7 @@ def monitor_cb_control(ud, msg):
     elif msg.data== "turn_off_sentry":
         pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
+        last_state = False
         rospy.loginfo(rospy.get_caller_id() + 'UV lights OFF, turn_off_sentry')
         ud.msg_data="turn_off_sentry"
         human_detected_once=False #to prevent this variable remaining true
@@ -433,6 +444,7 @@ def monitor_cb_control(ud, msg):
     elif msg.data== "error_received":
         pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
+        last_state = False
         rospy.loginfo(rospy.get_caller_id() + 'UV lights OFF')
         ud.msg_data="error_received"
         return False
@@ -475,6 +487,7 @@ def monitor_cb_control(ud, msg):
         #if none of the data is recognised return incorrect data to control human detection
         pub_timer_control.publish("stop_timer")
         pub_light.publish(False)
+        last_state = False
         rospy.loginfo(rospy.get_caller_id() +' UV lights OFF')
         rospy.logwarn(rospy.get_caller_id() +' Incorrect data')
         rospy.loginfo(rospy.get_caller_id() + msg.data)
